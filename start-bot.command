@@ -25,8 +25,8 @@ cleanup() {
   echo "✅ Bot stopped."
 }
 
-# Catch: Ctrl+C, window close, kill signal
-trap cleanup INT TERM HUP EXIT
+# Catch: window close, kill signal
+trap cleanup TERM HUP EXIT
 
 # ── Check if bot is already running ────────────────────────────
 if [ -f "$PID_FILE" ]; then
@@ -51,7 +51,6 @@ echo "🎵 Starting TARS Music Bot..."
 echo "📁 $BOT_DIR"
 echo ""
 echo "  • Close this window to stop the bot"
-echo "  • Press Ctrl+C to stop the bot"
 echo "─────────────────────────────────────"
 echo ""
 
