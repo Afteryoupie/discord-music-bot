@@ -2,6 +2,8 @@
 
 A lightweight Discord music bot built with Node.js that streams YouTube audio directly to voice channels.
 
+**English** | [繁體中文](./README.zh-TW.md)
+
 ## ✨ Features
 
 - 🔗 Play music from YouTube URLs
