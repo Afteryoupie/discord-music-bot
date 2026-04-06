@@ -1,0 +1,30 @@
+{
+  "name": "discord-music-bot",
+  "version": "1.0.0",
+  "description": "Discord Music Bot - Phase 1 MVP",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node scripts/deploy-commands.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "music",
+    "youtube"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.19.2",
+    "@distube/ytdl-core": "^4.16.12",
+    "discord.js": "^14.26.2",
+    "dotenv": "^16.4.5",
+    "ffmpeg-static": "^5.2.0",
+    "play-dl": "^1.9.7",
+    "yt-search": "^2.13.1",
+    "ytdl-core": "^4.11.5"
+  }
+}

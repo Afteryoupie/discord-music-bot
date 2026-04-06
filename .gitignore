@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets - NEVER commit these
+.env
+setting.env
+
+# yt-dlp cache and downloaded binary
+.ytdlp-cache/
+yt-dlp
+
+# npm cache
+.npm-cache/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# Node local binary (downloaded for local dev only)
+node/
+
+# yt-dlp debug files
+*-player-script.js
+
+# Dev helper scripts
+npm.sh
