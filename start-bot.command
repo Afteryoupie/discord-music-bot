@@ -2,56 +2,66 @@
 
 # TARS Music Bot - Toggle Start/Stop
 # Double-click this file in Finder to start or stop the bot
+# Closing this window will also stop the bot
 
 BOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PID_FILE="$BOT_DIR/.bot.pid"
 NODE="$BOT_DIR/node/bin/node"
-LOG_FILE="$BOT_DIR/bot.log"
 
-# Check if node binary exists, fallback to system node
+# Fallback to system node if local binary not found
 if [ ! -f "$NODE" ]; then
   NODE="node"
 fi
 
-# ── Check if bot is currently running ──────────────────────────
+# ── Cleanup function: stop bot and remove PID file ─────────────
+cleanup() {
+  if [ -n "$BOT_PID" ] && kill -0 "$BOT_PID" 2>/dev/null; then
+    echo ""
+    echo "⏹  Stopping TARS Music Bot..."
+    kill "$BOT_PID"
+    wait "$BOT_PID" 2>/dev/null
+  fi
+  rm -f "$PID_FILE"
+  echo "✅ Bot stopped."
+}
+
+# Catch: Ctrl+C, window close, kill signal
+trap cleanup INT TERM HUP EXIT
+
+# ── Check if bot is already running ────────────────────────────
 if [ -f "$PID_FILE" ]; then
   PID=$(cat "$PID_FILE")
   if kill -0 "$PID" 2>/dev/null; then
-    # Bot is running → stop it
-    echo "⏹  Stopping TARS Music Bot (PID: $PID)..."
+    echo "⏹  TARS Bot is running (PID: $PID). Stopping..."
     kill "$PID"
     rm -f "$PID_FILE"
     echo "✅ Bot stopped."
     echo ""
-    echo "Press any key to close this window..."
+    echo "Press any key to close..."
     read -n 1
+    trap - EXIT  # disable cleanup on exit since we already stopped
     exit 0
   else
-    # PID file exists but process is dead → clean up
     rm -f "$PID_FILE"
   fi
 fi
 
-# ── Bot is not running → start it ──────────────────────────────
+# ── Start the bot ───────────────────────────────────────────────
 echo "🎵 Starting TARS Music Bot..."
-echo "📁 Directory: $BOT_DIR"
-echo "📋 Logs: $LOG_FILE"
+echo "📁 $BOT_DIR"
 echo ""
-echo "Press Ctrl+C to stop the bot"
+echo "  • Close this window to stop the bot"
+echo "  • Press Ctrl+C to stop the bot"
 echo "─────────────────────────────────────"
+echo ""
 
 cd "$BOT_DIR"
 "$NODE" src/index.js &
 BOT_PID=$!
 echo $BOT_PID > "$PID_FILE"
 
-echo "✅ Bot started! (PID: $BOT_PID)"
+echo "✅ Bot online! (PID: $BOT_PID)"
 echo ""
 
-# Follow the log output (show bot activity live)
+# Wait for bot process (keeps window open)
 wait $BOT_PID
-rm -f "$PID_FILE"
-echo ""
-echo "Bot has stopped."
-echo "Press any key to close this window..."
-read -n 1
