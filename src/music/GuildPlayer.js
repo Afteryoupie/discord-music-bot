@@ -14,6 +14,7 @@ const {
   entersState,
 } = require('@discordjs/voice');
 const { createAudioPipeline } = require('./audioPipeline');
+const db = require('../database/DbManager');
 
 // How long (ms) to wait after queue empties before auto-disconnecting
 const IDLE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -46,6 +47,12 @@ class GuildPlayer {
     /** @type {NodeJS.Timeout | null} */
     this._idleTimer = null;
 
+    /** @type {boolean} Radio mode: auto-plays from history when queue is empty */
+    this.isRadioMode = false;
+
+    /** @type {string | null} Last played video ID for recommendations */
+    this.lastPlayedId = null;
+
     this._setupPlayer();
   }
 
@@ -76,7 +83,7 @@ class GuildPlayer {
 
       // Notify text channel
       if (this.textChannel) {
-        this.textChannel.send(`❌ 播放錯誤：**${failedSong}**，自動跳到下一首...`).catch(() => { });
+        this.textChannel.send(`❌ 播放錯誤：**${failedSong}**，自動跳到下一首...`).catch(() => {});
       }
 
       // Auto-skip to next song
@@ -156,6 +163,10 @@ class GuildPlayer {
     this._cleanupPipeline();
 
     if (this.queue.length === 0) {
+      if (this.isRadioMode) {
+        this._startRadio();
+        return;
+      }
       this.nowPlaying = null;
       this._startIdleTimer();
       return;
@@ -164,9 +175,21 @@ class GuildPlayer {
     const song = this.queue.shift();
     this.nowPlaying = song;
 
+    // Track video ID for history and recommendations
+    try {
+      if (song.url.includes('v=')) {
+        this.lastPlayedId = new URL(song.url).searchParams.get('v');
+      } else if (song.url.includes('youtu.be/')) {
+        this.lastPlayedId = song.url.split('youtu.be/')[1]?.split('?')[0];
+      }
+    } catch {}
+
     console.log(`[${this.guildId}] Playing: ${song.title} (${song.url})`);
 
     try {
+      // Record to history
+      db.recordHistory(this.guildId, song);
+
       const { stream, cleanup } = createAudioPipeline(song.url);
       this._pipelineCleanup = cleanup;
 
@@ -185,14 +208,14 @@ class GuildPlayer {
         this.textChannel.send(
           `🎵 正在播放：**${song.title}** (${song.duration})\n` +
           `👤 點歌者：${song.requestedBy}${queueInfo}`
-        ).catch(() => { });
+        ).catch(() => {});
       }
     } catch (error) {
       console.error(`[${this.guildId}] Failed to start pipeline:`, error.message);
       this.nowPlaying = null;
 
       if (this.textChannel) {
-        this.textChannel.send(`❌ 無法播放 **${song.title}**：${error.message}`).catch(() => { });
+        this.textChannel.send(`❌ 無法播放 **${song.title}**：${error.message}`).catch(() => {});
       }
 
       // Try next song
@@ -270,7 +293,7 @@ class GuildPlayer {
     }
 
     if (this.connection) {
-      try { this.connection.destroy(); } catch { }
+      try { this.connection.destroy(); } catch {}
     }
 
     this._reset();
@@ -299,7 +322,7 @@ class GuildPlayer {
     this._idleTimer = setTimeout(() => {
       console.log(`[${this.guildId}] Idle timeout — auto-disconnecting.`);
       if (this.textChannel) {
-        this.textChannel.send('👋 已經 3 分鐘沒有新歌了，自動離開語音頻道！').catch(() => { });
+        this.textChannel.send('👋 已經 3 分鐘沒有新歌了，自動離開語音頻道！').catch(() => {});
       }
       this.destroy();
       guildPlayers.delete(this.guildId);
@@ -310,6 +333,35 @@ class GuildPlayer {
     if (this._idleTimer) {
       clearTimeout(this._idleTimer);
       this._idleTimer = null;
+    }
+  }
+
+  /**
+   * Radio Mode implementation: Picks a random song from history to play.
+   * Can be improved with actual YouTube recommendations later.
+   */
+  _startRadio() {
+    const historicalSong = db.getRandomFromHistory(this.guildId);
+    
+    if (historicalSong) {
+      if (this.textChannel) {
+        this.textChannel.send('📻 清單空了，**智慧電台**啟動！播一首這台的人都愛聽的歌曲...').catch(() => {});
+      }
+      
+      const songToPlay = {
+        title: historicalSong.title,
+        url: historicalSong.url,
+        duration: historicalSong.duration,
+        requestedById: 'radio',
+        requestedByName: '智慧電台'
+      };
+      
+      this.queue.push(songToPlay);
+      this.playNext();
+    } else {
+      // No history yet
+      this.nowPlaying = null;
+      this._startIdleTimer();
     }
   }
 }

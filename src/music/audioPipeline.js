@@ -27,18 +27,6 @@ function isYouTubeURL(str) {
 }
 
 /**
- * Check if a string looks like a YouTube Playlist URL.
- */
-function isYouTubePlaylist(str) {
-  try {
-    const url = new URL(str);
-    return (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) && url.searchParams.has('list');
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Create a piped audio stream: yt-dlp stdout → ffmpeg stdin → ffmpeg stdout (PCM s16le)
  *
  * Returns an object: { stream, cleanup }
@@ -127,48 +115,4 @@ function getVideoMetadata(videoUrl) {
   });
 }
 
-/**
- * Fetch all video entries from a YouTube playlist using yt-dlp.
- * @param {string} playlistUrl
- * @param {number} limit Maximum number of songs to fetch.
- * @returns {Promise<{playlistTitle: string, entries: Array<{title: string, url: string, duration: string}>} | null>}
- */
-function getPlaylistMetadata(playlistUrl, limit = 50) {
-  return new Promise((resolve) => {
-    const { exec } = require('child_process');
-    // --flat-playlist: don't extract each video, just list them.
-    // --dump-single-json: output the whole playlist as one JSON.
-    // --playlist-items: limit the number of items.
-    const cmd = `"${YTDLP_PATH}" --flat-playlist --dump-single-json --playlist-items 1-${limit} "${playlistUrl}"`;
-
-    exec(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 30000 }, (error, stdout) => {
-      if (error) {
-        console.error('[yt-dlp playlist error]', error.message);
-        return resolve(null);
-      }
-
-      try {
-        const data = JSON.parse(stdout);
-        const playlistTitle = data.title || 'Unknown Playlist';
-        const entries = (data.entries || []).map(entry => ({
-          title: entry.title || 'Unknown Title',
-          url: entry.url || (entry.id ? `https://www.youtube.com/watch?v=${entry.id}` : null),
-          duration: entry.duration_string || '?',
-        })).filter(e => e.url);
-
-        resolve({ playlistTitle, entries });
-      } catch (err) {
-        console.error('[yt-dlp playlist parse error]', err.message);
-        resolve(null);
-      }
-    });
-  });
-}
-
-module.exports = {
-  isYouTubeURL,
-  isYouTubePlaylist,
-  createAudioPipeline,
-  getVideoMetadata,
-  getPlaylistMetadata,
-};
+module.exports = { isYouTubeURL, createAudioPipeline, getVideoMetadata };
