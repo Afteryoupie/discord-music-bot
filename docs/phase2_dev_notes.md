@@ -28,6 +28,18 @@
 - 新增：`/queue` (查看前10首)、`/skip` (跳過當前觸發自動播放)、`/pause` (暫停)、`/resume` (恢復)、`/nowplaying` (詳情)。
 - 指令都變得極度輕量化（幾乎只有回傳文字與呼叫 `GuildPlayer` 方法），將複雜的商業邏輯全部抽離到了 `src/music` 之下。
 
+## 6. 未來擴充想法：電台功能 (Radio Mode)
+為了提升使用者體驗，未來可以考慮加入以下幾種電台實作：
+
+- **YouTube 自動續播 (Auto-play Radio)**：
+  - **核心邏輯**：當 `queue` 空了，根據最後一首歌的 `videoId` 透過 API 抓取推薦歌曲（Related Videos）。
+  - **技術關鍵**：在 `GuildPlayer` 內新增 `isRadioMode` 開關，並在 `playNext()` 結尾觸發推薦抓取。
+- **網路串流電台 (Internet Radio)**：
+  - **核心邏輯**：支援 `.m3u8` 或 `.pls` 的串流連結，或是 YouTube 長時間直播。
+  - **技術關鍵**：檢測 `yt-dlp` 的 `is_live` 屬性，並對直播串流關閉自動下一首邏輯。
+- **伺服器專屬歌單 (Server Shuffle)**：
+  - **核心邏輯**：整合資料庫，當清單空時從伺服器「最愛」或「熱門」歌曲中隨機抽樣播放。
+
 ---
 
 > **未來的接手建議**：如果發現 `/play <關鍵字>` 又時常找不到歌，可以考慮把關鍵字搜尋也改成套用 `yt-dlp "ytsearch1:關鍵字"`，或者引進 Lavalink 外部伺服器 (Phase 4 目標)。
