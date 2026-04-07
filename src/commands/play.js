@@ -5,7 +5,7 @@ const {
   entersState,
 } = require('@discordjs/voice');
 const yts = require('yt-search');
-const { isYouTubeURL } = require('../music/audioPipeline');
+const { isYouTubeURL, getVideoMetadata } = require('../music/audioPipeline');
 const { getOrCreate } = require('../music/GuildPlayer');
 
 module.exports = {
@@ -42,18 +42,11 @@ module.exports = {
 
       if (isYouTubeURL(query)) {
         videoUrl = query;
-        // Try to get title from yt-search by video ID
-        const videoId = new URL(videoUrl).searchParams.get('v')
-          || videoUrl.split('youtu.be/')[1]?.split('?')[0];
-        if (videoId) {
-          try {
-            const info = await yts({ videoId });
-            videoTitle = info.title || 'Unknown';
-            if (info.duration) {
-              const d = info.duration;
-              videoDuration = `${d.minutes}:${String(d.seconds).padStart(2, '0')}`;
-            }
-          } catch { /* ignore */ }
+        // Fetch metadata via yt-dlp to bypass 429 rate limit
+        const info = await getVideoMetadata(videoUrl);
+        if (info) {
+          videoTitle = info.title;
+          videoDuration = info.duration;
         }
       } else {
         console.log(`[search] Searching: ${query}`);

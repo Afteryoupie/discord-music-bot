@@ -36,7 +36,7 @@ function isYouTubeURL(str) {
 function createAudioPipeline(videoUrl) {
   const ytdlp = spawn(YTDLP_PATH, [
     '--cache-dir', YTDLP_CACHE,
-    '-f', 'bestaudio[ext=webm]/bestaudio',
+    '-f', 'bestaudio/best',
     '--no-playlist',
     '-o', '-',       // pipe to stdout
     videoUrl,
@@ -90,4 +90,28 @@ function createAudioPipeline(videoUrl) {
   return { stream: ffmpeg.stdout, cleanup };
 }
 
-module.exports = { isYouTubeURL, createAudioPipeline };
+/**
+ * Fetch video title and duration using yt-dlp to bypass 429 rate limits.
+ * @param {string} videoUrl
+ * @returns {Promise<{title: string, duration: string} | null>}
+ */
+function getVideoMetadata(videoUrl) {
+  return new Promise((resolve) => {
+    const { exec } = require('child_process');
+    const cmd = `"${YTDLP_PATH}" --no-warnings --cache-dir "${YTDLP_CACHE}" --print "%(title)s|%(duration_string)s" "${videoUrl}"`;
+    exec(cmd, { timeout: 15000 }, (error, stdout) => {
+      if (error) {
+        console.error('[yt-dlp metadata error]', error.message);
+        return resolve(null);
+      }
+      const parts = stdout.trim().split('|');
+      if (parts.length >= 2) {
+        resolve({ title: parts[0], duration: parts[1] });
+      } else {
+        resolve({ title: parts[0] || 'Unknown', duration: '?' });
+      }
+    });
+  });
+}
+
+module.exports = { isYouTubeURL, createAudioPipeline, getVideoMetadata };
