@@ -4,18 +4,17 @@ const {
   VoiceConnectionStatus,
   entersState,
 } = require('@discordjs/voice');
-const yts = require('yt-search');
-const { isYouTubeURL, getVideoMetadata } = require('../music/audioPipeline');
+const { isYouTubeURL, isYouTubePlaylist, getVideoMetadata, getPlaylistMetadata } = require('../music/audioPipeline');
 const { getOrCreate } = require('../music/GuildPlayer');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('播放 YouTube 音樂（網址或關鍵字搜尋）')
+    .setDescription('播放 YouTube 音樂（網址、關鍵字或播放清單）')
     .addStringOption(option =>
       option
         .setName('song')
-        .setDescription('YouTube URL or search keywords')
+        .setDescription('YouTube URL, Search keywords, or Playlist URL')
         .setRequired(true)
     ),
 
@@ -34,15 +33,44 @@ module.exports = {
     const query = interaction.options.getString('song');
     await interaction.deferReply();
 
+    const gp = getOrCreate(interaction.guildId);
+    gp.textChannel = interaction.channel;
+
     try {
-      // 2. Resolve URL or search
+      // 2. Resolve URL, Playlist or search
+      if (isYouTubePlaylist(query)) {
+        // --- PLAYLIST LOGIC ---
+        const playlist = await getPlaylistMetadata(query, 50);
+        if (!playlist || playlist.entries.length === 0) {
+          return interaction.editReply('❌ 無法讀取播放清單，請確認網址是否正確且非私人清單。');
+        }
+
+        // Ensure voice connection before adding
+        await this._ensureConnection(gp, voiceChannel, interaction);
+        if (!gp.connection) return; // Error handled in _ensureConnection
+
+        const songs = playlist.entries.map(entry => ({
+          title: entry.title,
+          url: entry.url,
+          duration: entry.duration,
+          requestedBy: interaction.user.displayName || interaction.user.username,
+        }));
+
+        const result = gp.enqueueMany(songs);
+        const playMsg = result === 'playing' ? `🎵 正在播放：**${songs[0].title}**\n` : '';
+
+        return interaction.editReply(
+          `${playMsg}✅ 已成功從播放清單 **${playlist.playlistTitle}** 加入 **${songs.length}** 首歌！`
+        );
+      }
+
+      // --- SINGLE SONG OR SEARCH LOGIC ---
       let videoUrl;
       let videoTitle = 'Unknown';
       let videoDuration = '?';
 
       if (isYouTubeURL(query)) {
         videoUrl = query;
-        // Fetch metadata via yt-dlp to bypass 429 rate limit
         const info = await getVideoMetadata(videoUrl);
         if (info) {
           videoTitle = info.title;
@@ -61,31 +89,9 @@ module.exports = {
         if (dur) videoDuration = `${dur.minutes}:${String(dur.seconds).padStart(2, '0')}`;
       }
 
-      // 3. Get or create GuildPlayer
-      const gp = getOrCreate(interaction.guildId);
-      gp.textChannel = interaction.channel;
+      await this._ensureConnection(gp, voiceChannel, interaction);
+      if (!gp.connection) return;
 
-      // 4. Ensure voice connection
-      if (!gp.connection || gp.connection.state.status === VoiceConnectionStatus.Destroyed) {
-        const connection = joinVoiceChannel({
-          channelId: voiceChannel.id,
-          guildId: interaction.guildId,
-          adapterCreator: interaction.guild.voiceAdapterCreator,
-        });
-
-        try {
-          await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-          console.log(`[${interaction.guildId}] Voice connection READY`);
-        } catch (err) {
-          console.error(`[${interaction.guildId}] Voice connection failed:`, err.message);
-          try { connection.destroy(); } catch {}
-          return interaction.editReply('❌ 無法連接到語音頻道，請稍後再試。');
-        }
-
-        gp.setConnection(connection);
-      }
-
-      // 5. Enqueue
       const song = {
         title: videoTitle,
         url: videoUrl,
@@ -110,6 +116,29 @@ module.exports = {
     } catch (error) {
       console.error('[/play error]', error);
       return interaction.editReply(`❌ 錯誤：${error.message}`);
+    }
+  },
+
+  /**
+   * Helper to ensure voice connection is ready.
+   */
+  async _ensureConnection(gp, voiceChannel, interaction) {
+    if (!gp.connection || gp.connection.state.status === VoiceConnectionStatus.Destroyed) {
+      const connection = joinVoiceChannel({
+        channelId: voiceChannel.id,
+        guildId: interaction.guildId,
+        adapterCreator: interaction.guild.voiceAdapterCreator,
+      });
+
+      try {
+        await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+      } catch (err) {
+        console.error(`[${interaction.guildId}] Voice connection failed:`, err.message);
+        try { connection.destroy(); } catch {}
+        await interaction.editReply('❌ 無法連接到語音頻道，請稍後再試。');
+        return;
+      }
+      gp.setConnection(connection);
     }
   },
 };

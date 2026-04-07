@@ -28,7 +28,13 @@
 - 新增：`/queue` (查看前10首)、`/skip` (跳過當前觸發自動播放)、`/pause` (暫停)、`/resume` (恢復)、`/nowplaying` (詳情)。
 - 指令都變得極度輕量化（幾乎只有回傳文字與呼叫 `GuildPlayer` 方法），將複雜的商業邏輯全部抽離到了 `src/music` 之下。
 
-## 6. 未來擴充想法：電台功能 (Radio Mode)
+## 6. YouTube 播放清單支援 (Playlist Support)
+為了支援一次加入多首歌曲，我們對 `audioPipeline` 和 `GuildPlayer` 進行了擴充：
+- **高效 Metadata 抓取**：利用 `yt-dlp --flat-playlist --dump-single-json`。這可以在不解析每一部影片詳細資訊的情況下，快速列出清單中所有歌曲的標題與網址。
+- **批量處理效能**：在 `GuildPlayer` 中新增了 `enqueueMany(songs)` 方法。這能一次性將歌曲陣列 `push` 到 `queue` 中，並只在必要時觸發播放，避免了連續呼叫單一 `enqueue` 造成的效能損耗。
+- **防止過度加載**：目前程式碼預設限制單一清單最多載入 50 首歌，以確保伺服器穩定性。
+
+## 7. 未來擴充想法：電台功能 (Radio Mode)
 為了提升使用者體驗，未來可以考慮加入以下幾種電台實作：
 
 - **YouTube 自動續播 (Auto-play Radio)**：
@@ -37,8 +43,6 @@
 - **網路串流電台 (Internet Radio)**：
   - **核心邏輯**：支援 `.m3u8` 或 `.pls` 的串流連結，或是 YouTube 長時間直播。
   - **技術關鍵**：檢測 `yt-dlp` 的 `is_live` 屬性，並對直播串流關閉自動下一首邏輯。
-- **伺服器專屬歌單 (Server Shuffle)**：
-  - **核心邏輯**：整合資料庫，當清單空時從伺服器「最愛」或「熱門」歌曲中隨機抽樣播放。
 
 ---
 

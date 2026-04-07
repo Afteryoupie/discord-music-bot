@@ -149,6 +149,26 @@ class GuildPlayer {
   }
 
   /**
+   * Add multiple songs to the queue.
+   * @param {Array<{title: string, url: string, duration: string, requestedBy: string}>} songs
+   * @returns {'playing' | 'queued'} Whether playback started or songs were queued.
+   */
+  enqueueMany(songs) {
+    if (!songs || songs.length === 0) return 'queued';
+    this._clearIdleTimer();
+
+    const wasIdle = (this.nowPlaying === null && this.player.state.status === AudioPlayerStatus.Idle);
+
+    this.queue.push(...songs);
+
+    if (wasIdle) {
+      this.playNext();
+      return 'playing';
+    }
+    return 'queued';
+  }
+
+  /**
    * Play the next song from the queue.
    */
   playNext() {
