@@ -171,7 +171,8 @@ class GuildPlayer {
       this._pipelineCleanup = cleanup;
 
       const resource = createAudioResource(stream, {
-        inputType: StreamType.Raw,
+        inputType: StreamType.OggOpus,
+        inlineVolume: false,
       });
 
       this.player.play(resource);

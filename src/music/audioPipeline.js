@@ -44,9 +44,10 @@ function createAudioPipeline(videoUrl) {
 
   const ffmpeg = spawn(FFMPEG_PATH, [
     '-i', 'pipe:0',  // read from stdin
-    '-f', 's16le',   // PCM signed 16-bit little-endian
-    '-ar', '48000',  // 48kHz sample rate (Discord standard)
-    '-ac', '2',      // stereo
+    '-c:a', 'libopus', // use libopus encoder (Discord native)
+    '-b:a', '128k',    // 128kbps bitrate
+    '-frame_duration', '20', // 20ms frame duration
+    '-f', 'opus',      // Ogg Opus container output
     'pipe:1',        // output to stdout
   ], { stdio: ['pipe', 'pipe', 'pipe'] });
 
