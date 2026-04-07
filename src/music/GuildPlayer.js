@@ -76,7 +76,7 @@ class GuildPlayer {
 
       // Notify text channel
       if (this.textChannel) {
-        this.textChannel.send(`❌ 播放錯誤：**${failedSong}**，自動跳到下一首...`).catch(() => {});
+        this.textChannel.send(`❌ 播放錯誤：**${failedSong}**，自動跳到下一首...`).catch(() => { });
       }
 
       // Auto-skip to next song
@@ -149,26 +149,6 @@ class GuildPlayer {
   }
 
   /**
-   * Add multiple songs to the queue.
-   * @param {Array<{title: string, url: string, duration: string, requestedBy: string}>} songs
-   * @returns {'playing' | 'queued'} Whether playback started or songs were queued.
-   */
-  enqueueMany(songs) {
-    if (!songs || songs.length === 0) return 'queued';
-    this._clearIdleTimer();
-
-    const wasIdle = (this.nowPlaying === null && this.player.state.status === AudioPlayerStatus.Idle);
-
-    this.queue.push(...songs);
-
-    if (wasIdle) {
-      this.playNext();
-      return 'playing';
-    }
-    return 'queued';
-  }
-
-  /**
    * Play the next song from the queue.
    */
   playNext() {
@@ -205,14 +185,14 @@ class GuildPlayer {
         this.textChannel.send(
           `🎵 正在播放：**${song.title}** (${song.duration})\n` +
           `👤 點歌者：${song.requestedBy}${queueInfo}`
-        ).catch(() => {});
+        ).catch(() => { });
       }
     } catch (error) {
       console.error(`[${this.guildId}] Failed to start pipeline:`, error.message);
       this.nowPlaying = null;
 
       if (this.textChannel) {
-        this.textChannel.send(`❌ 無法播放 **${song.title}**：${error.message}`).catch(() => {});
+        this.textChannel.send(`❌ 無法播放 **${song.title}**：${error.message}`).catch(() => { });
       }
 
       // Try next song
@@ -290,7 +270,7 @@ class GuildPlayer {
     }
 
     if (this.connection) {
-      try { this.connection.destroy(); } catch {}
+      try { this.connection.destroy(); } catch { }
     }
 
     this._reset();
@@ -319,7 +299,7 @@ class GuildPlayer {
     this._idleTimer = setTimeout(() => {
       console.log(`[${this.guildId}] Idle timeout — auto-disconnecting.`);
       if (this.textChannel) {
-        this.textChannel.send('👋 已經 3 分鐘沒有新歌了，自動離開語音頻道！').catch(() => {});
+        this.textChannel.send('👋 已經 3 分鐘沒有新歌了，自動離開語音頻道！').catch(() => { });
       }
       this.destroy();
       guildPlayers.delete(this.guildId);
