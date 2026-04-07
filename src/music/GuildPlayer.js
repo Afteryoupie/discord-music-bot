@@ -53,6 +53,9 @@ class GuildPlayer {
     /** @type {string | null} Last played video ID for recommendations */
     this.lastPlayedId = null;
 
+    /** @type {NodeJS.Timeout | null} Timer for recording song to history after 30s */
+    this._historyTimer = null;
+
     this._setupPlayer();
   }
 
@@ -187,11 +190,15 @@ class GuildPlayer {
     console.log(`[${this.guildId}] Playing: ${song.title} (${song.url})`);
 
     try {
-      // Record to history
-      db.recordHistory(this.guildId, song);
-
       const { stream, cleanup } = createAudioPipeline(song.url);
       this._pipelineCleanup = cleanup;
+
+      // Set a timer to record to history only after 30 seconds of playback
+      this._clearHistoryTimer();
+      this._historyTimer = setTimeout(() => {
+        db.recordHistory(this.guildId, song);
+        this._historyTimer = null;
+      }, 30000);
 
       const resource = createAudioResource(stream, {
         inputType: StreamType.OggOpus,
@@ -311,6 +318,7 @@ class GuildPlayer {
   }
 
   _cleanupPipeline() {
+    this._clearHistoryTimer();
     if (this._pipelineCleanup) {
       this._pipelineCleanup();
       this._pipelineCleanup = null;
@@ -333,6 +341,13 @@ class GuildPlayer {
     if (this._idleTimer) {
       clearTimeout(this._idleTimer);
       this._idleTimer = null;
+    }
+  }
+
+  _clearHistoryTimer() {
+    if (this._historyTimer) {
+      clearTimeout(this._historyTimer);
+      this._historyTimer = null;
     }
   }
 
