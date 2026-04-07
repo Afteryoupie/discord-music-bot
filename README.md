@@ -10,9 +10,10 @@
 
 - 🔗 支援 YouTube 網址直接播放
 - 🔍 支援關鍵字搜尋 YouTube
+- 📋 支援完整的播放清單 (Queue) 系統、自動輪播與狀態管理（Phase 2）
 - ⚡ 透過 `yt-dlp` + `ffmpeg` 管道實現快速串流
-- 🌐 支援多個 Discord 伺服器（全域 Slash Commands）
-- 🛡️ 完善的錯誤處理機制
+- 🌐 支援多個 Discord 伺服器獨立狀態（全域 Slash Commands）
+- 🛡️ 完善的錯誤處理及斷線防護機制
 
 ## 🛠️ 技術棧
 
@@ -89,8 +90,13 @@ node src/index.js
 
 | 指令 | 說明 | 範例 |
 |------|------|------|
-| `/play` | 播放 YouTube 音樂（支援網址或關鍵字） | `/play song: 告白氣球` |
-| `/leave` | 讓機器人離開語音頻道 | `/leave` |
+| `/play` | 播放 YouTube 音樂（支援網址或關鍵字），並自動加入播放清單 | `/play song: 告白氣球` |
+| `/skip` | 跳過目前播放的歌曲 | `/skip` |
+| `/pause` | 暫停目前播放的歌曲 | `/pause` |
+| `/resume` | 恢復播放已暫停的歌曲 | `/resume` |
+| `/queue` | 查看當前播放清單 | `/queue` |
+| `/nowplaying` | 顯示正在播放的歌曲資訊 | `/nowplaying` |
+| `/leave` | 讓機器人離開語音頻道並清空播放清單 | `/leave` |
 
 ## 📁 專案結構
 
@@ -99,10 +105,18 @@ discord-music-bot/
 ├── src/
 │   ├── index.js              # 主程式入口
 │   ├── commands/
-│   │   ├── play.js           # /play 指令
-│   │   └── leave.js          # /leave 指令
-│   └── handlers/
-│       └── commandHandler.js # 自動載入指令
+│   │   ├── play.js           # /play 指令 (加入清單)
+│   │   ├── leave.js          # /leave 指令 (斷線清空)
+│   │   ├── skip.js           # /skip 指令
+│   │   ├── pause.js          # /pause 指令
+│   │   ├── resume.js         # /resume 指令
+│   │   ├── queue.js          # /queue 指令
+│   │   └── nowplaying.js     # /nowplaying 指令
+│   ├── handlers/
+│   │   └── commandHandler.js # 自動載入指令
+│   └── music/
+│       ├── audioPipeline.js  # yt-dlp + ffmpeg 音訊管道
+│       └── GuildPlayer.js    # 各伺服器的獨立播放狀態與清單管理器
 ├── scripts/
 │   └── deploy-commands.js    # 向 Discord 註冊 Slash Commands
 ├── .env.example              # 環境變數範例

@@ -8,9 +8,12 @@ A lightweight Discord music bot built with Node.js that streams YouTube audio di
 
 - 🔗 Play music from YouTube URLs
 - 🔍 Search YouTube by keywords
+- 🔗 Play music from YouTube URLs
+- 🔍 Search YouTube by keywords
+- 📋 Full queue system, auto-play, and state management (Phase 2)
 - ⚡ Fast streaming via `yt-dlp` + `ffmpeg` pipeline
-- 🌐 Works across multiple Discord servers (Global Slash Commands)
-- 🛡️ Robust error handling
+- 🌐 Works across multiple Discord servers independently (Global Slash Commands)
+- 🛡️ Robust error handling and unexpected disconnect protection
 
 ## 🛠️ Tech Stack
 
@@ -87,8 +90,13 @@ node src/index.js
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/play` | Play music from YouTube URL or search keywords | `/play song: never gonna give you up` |
-| `/leave` | Disconnect the bot from the voice channel | `/leave` |
+| `/play` | Play music from YouTube URL or search keywords (Enqueues if already playing) | `/play song: never gonna give you up` |
+| `/skip` | Skip the currently playing song | `/skip` |
+| `/pause` | Pause the currently playing song | `/pause` |
+| `/resume` | Resume the paused song | `/resume` |
+| `/queue` | View the current music queue | `/queue` |
+| `/nowplaying` | Show details about the currently playing song | `/nowplaying` |
+| `/leave` | Disconnect the bot from the voice channel and clear queue | `/leave` |
 
 ## 📁 Project Structure
 
@@ -96,11 +104,19 @@ node src/index.js
 discord-music-bot/
 ├── src/
 │   ├── index.js              # Main entry point
-│   ├── commands/
-│   │   ├── play.js           # /play command
-│   │   └── leave.js          # /leave command
-│   └── handlers/
-│       └── commandHandler.js # Auto-loads commands
+│    ├── commands/
+│   │   ├── play.js           # /play command (enqueue)
+│   │   ├── leave.js          # /leave command (disconnect & clear)
+│   │   ├── skip.js           # /skip command
+│   │   ├── pause.js          # /pause command
+│   │   ├── resume.js         # /resume command
+│   │   ├── queue.js          # /queue command
+│   │   └── nowplaying.js     # /nowplaying command
+│   ├── handlers/
+│   │   └── commandHandler.js # Auto-loads commands
+│   └── music/
+│       ├── audioPipeline.js  # yt-dlp + ffmpeg pipeline
+│       └── GuildPlayer.js    # Per-guild music state & queue manager
 ├── scripts/
 │   └── deploy-commands.js    # Register slash commands with Discord
 ├── .env.example              # Environment variable template
