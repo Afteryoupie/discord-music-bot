@@ -3,6 +3,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', 'setting.
 const { Client, GatewayIntentBits, Events } = require('discord.js');
 const { loadCommands } = require('./handlers/commandHandler');
 const { handleButton } = require('./handlers/buttonHandler');
+const { guildPlayers } = require('./music/GuildPlayer');
 
 async function main() {
   // @discordjs/voice will use Node.js built-in AES-256-GCM (aead_aes256_gcm_rtpsize)
@@ -57,6 +58,31 @@ async function main() {
       } else {
         await interaction.reply(msg).catch(() => {});
       }
+    }
+  });
+
+  // Auto-leave when voice channel is empty for 3 minutes
+  client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+    const guildId = oldState.guild.id;
+    const gp = guildPlayers.get(guildId);
+    if (!gp || !gp.connection) return;
+
+    // Get the channel the bot is currently in
+    const botChannelId = oldState.guild.members.me?.voice?.channelId;
+    if (!botChannelId) return;
+
+    const channel = oldState.guild.channels.cache.get(botChannelId);
+    if (!channel) return;
+
+    // Count human (non-bot) members in the channel
+    const humanCount = channel.members.filter(m => !m.user.bot).size;
+
+    if (humanCount === 0) {
+      // Channel is now empty — start the countdown
+      gp.startEmptyChannelTimer();
+    } else {
+      // Someone is in the channel — cancel any pending countdown
+      gp.clearEmptyChannelTimer();
     }
   });
 

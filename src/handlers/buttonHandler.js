@@ -24,24 +24,30 @@ async function handleButton(interaction) {
     if (customId === 'btn_pause_resume') {
       const wasPaused = gp.isPaused();
       wasPaused ? gp.resume() : gp.pause();
+      const nowPaused = !wasPaused;
 
-      await interaction.deferUpdate();
-      await gp.resendDashboard();
-      return;
+      // Update in-place — no need to move card to bottom
+      const embed = createPlayingEmbed(gp.nowPlaying, 0);
+      if (nowPaused) embed.setAuthor({ name: '⏸️ 已暫停' });
+
+      return interaction.update({
+        embeds: [embed],
+        components: [getPlayerButtons(nowPaused, gp.isRadioMode)],
+      });
     }
 
     // ── Skip ───────────────────────────────────────────────────
     if (customId === 'btn_skip') {
       await interaction.deferUpdate();
       const title = gp.nowPlaying ? gp.nowPlaying.title : '未知歌曲';
-      
+
       // Delete old dashboard first
       await gp._cleanupLastMessage();
-      
+
       // Send text notification
       await interaction.channel.send({ content: `⏭️ 已跳過：**${title}**` });
-      
-      // Trigger skip logic (which will call playNext -> resendDashboard)
+
+      // Trigger skip — stop(true) in skip() ensures Idle fires even if paused
       gp.skip();
       return;
     }
@@ -58,7 +64,7 @@ async function handleButton(interaction) {
 
       await interaction.deferUpdate();
       await interaction.channel.send({ content: '🔀 播放清單已隨機洗牌！' });
-      
+
       // Resend dashboard after the text message
       await gp.resendDashboard();
       return;

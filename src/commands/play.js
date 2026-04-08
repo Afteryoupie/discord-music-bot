@@ -119,15 +119,15 @@ module.exports = {
       const song = { title: videoTitle, url: videoUrl, duration: videoDuration, requestedBy };
       const enqueueResult = gp.enqueue(song);
 
-      // interaction.editReply will always show the "Added to Playlist" style.
-      // If it started playing immediately, GuildPlayer.js will send the separate "Now Playing" card.
       const pos = enqueueResult === 'playing' ? 1 : gp.queue.length;
       await interaction.editReply({
         embeds: [createPlayingEmbed(song, pos)],
       });
 
-      // After notification text is sent, resend the player dashboard at the bottom
-      if (gp.nowPlaying) {
+      // Only manually resend dashboard when song is QUEUED (not immediately playing).
+      // When immediately playing, playNext() already calls resendDashboard() internally.
+      // Calling it again from here causes a race condition → double cards.
+      if (enqueueResult === 'queued' && gp.nowPlaying) {
         await gp.resendDashboard();
       }
 

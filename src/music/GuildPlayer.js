@@ -63,6 +63,9 @@ class GuildPlayer {
     /** @type {import('discord.js').Message | null} Track the last sent dashboard message for cleanup */
     this.lastEmbedMessage = null;
 
+    /** @type {NodeJS.Timeout | null} Timer for empty channel auto-leave */
+    this._emptyChannelTimer = null;
+
     this._setupPlayer();
   }
 
@@ -240,9 +243,9 @@ class GuildPlayer {
    */
   skip() {
     const skipped = this.nowPlaying;
-    // Stopping the player triggers the Idle event → auto-plays next
     if (this.player && this.player.state.status !== AudioPlayerStatus.Idle) {
-      this.player.stop();
+      // Use stop(true) to force Idle transition, even when player is paused
+      this.player.stop(true);
     }
     return skipped;
   }
@@ -396,6 +399,33 @@ class GuildPlayer {
     if (this._idleTimer) {
       clearTimeout(this._idleTimer);
       this._idleTimer = null;
+    }
+  }
+
+  /**
+   * Start the empty-channel timer. Call when the bot's voice channel becomes empty.
+   * If no one joins within 3 minutes, the bot auto-leaves.
+   */
+  startEmptyChannelTimer() {
+    this.clearEmptyChannelTimer();
+    this._emptyChannelTimer = setTimeout(async () => {
+      console.log(`[${this.guildId}] Empty channel timeout — auto-disconnecting.`);
+      if (this.textChannel) {
+        await this.textChannel.send('👋 語音頻道已空，3 分鐘無人，自動離開！').catch(() => {});
+      }
+      await this._cleanupLastMessage();
+      this.destroy();
+      guildPlayers.delete(this.guildId);
+    }, IDLE_TIMEOUT_MS);
+  }
+
+  /**
+   * Cancel the empty-channel timer (someone rejoined).
+   */
+  clearEmptyChannelTimer() {
+    if (this._emptyChannelTimer) {
+      clearTimeout(this._emptyChannelTimer);
+      this._emptyChannelTimer = null;
     }
   }
 
