@@ -53,8 +53,11 @@ class GuildPlayer {
     /** @type {string | null} Last played video ID for recommendations */
     this.lastPlayedId = null;
 
-    /** @type {NodeJS.Timeout | null} Timer for recording song to history after 30s */
+    /** @type {NodeJS.Timeout | null} Timer for history recording */
     this._historyTimer = null;
+
+    /** @type {number} Max limit for playlist import */
+    this.playlistLimit = 50;
 
     this._setupPlayer();
   }
@@ -86,7 +89,7 @@ class GuildPlayer {
 
       // Notify text channel
       if (this.textChannel) {
-        this.textChannel.send(`❌ 播放錯誤：**${failedSong}**，自動跳到下一首...`).catch(() => {});
+        this.textChannel.send(`❌ 播放錯誤：**${failedSong}**，自動跳到下一首...`).catch(() => { });
       }
 
       // Auto-skip to next song
@@ -185,20 +188,18 @@ class GuildPlayer {
       } else if (song.url.includes('youtu.be/')) {
         this.lastPlayedId = song.url.split('youtu.be/')[1]?.split('?')[0];
       }
-    } catch {}
+    } catch { }
 
     console.log(`[${this.guildId}] Playing: ${song.title} (${song.url})`);
 
     try {
-      const { stream, cleanup } = createAudioPipeline(song.url);
-      this._pipelineCleanup = cleanup;
-
-      // Set a timer to record to history only after 30 seconds of playback
-      this._clearHistoryTimer();
+      // Record to history after 30 seconds
       this._historyTimer = setTimeout(() => {
         db.recordHistory(this.guildId, song);
-        this._historyTimer = null;
       }, 30000);
+
+      const { stream, cleanup } = createAudioPipeline(song.url);
+      this._pipelineCleanup = cleanup;
 
       const resource = createAudioResource(stream, {
         inputType: StreamType.OggOpus,
@@ -215,14 +216,14 @@ class GuildPlayer {
         this.textChannel.send(
           `🎵 正在播放：**${song.title}** (${song.duration})\n` +
           `👤 點歌者：${song.requestedBy}${queueInfo}`
-        ).catch(() => {});
+        ).catch(() => { });
       }
     } catch (error) {
       console.error(`[${this.guildId}] Failed to start pipeline:`, error.message);
       this.nowPlaying = null;
 
       if (this.textChannel) {
-        this.textChannel.send(`❌ 無法播放 **${song.title}**：${error.message}`).catch(() => {});
+        this.textChannel.send(`❌ 無法播放 **${song.title}**：${error.message}`).catch(() => { });
       }
 
       // Try next song
@@ -289,6 +290,18 @@ class GuildPlayer {
   }
 
   /**
+   * Shuffle the current queue.
+   */
+  shuffle() {
+    if (this.queue.length <= 1) return false;
+    for (let i = this.queue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.queue[i], this.queue[j]] = [this.queue[j], this.queue[i]];
+    }
+    return true;
+  }
+
+  /**
    * Destroy the player and disconnect from voice. Cleans up all state.
    */
   destroy() {
@@ -300,7 +313,7 @@ class GuildPlayer {
     }
 
     if (this.connection) {
-      try { this.connection.destroy(); } catch {}
+      try { this.connection.destroy(); } catch { }
     }
 
     this._reset();
@@ -315,6 +328,14 @@ class GuildPlayer {
     this.textChannel = null;
     this._pipelineCleanup = null;
     this._clearIdleTimer();
+    this._clearHistoryTimer();
+  }
+
+  _clearHistoryTimer() {
+    if (this._historyTimer) {
+      clearTimeout(this._historyTimer);
+      this._historyTimer = null;
+    }
   }
 
   _cleanupPipeline() {
@@ -330,7 +351,7 @@ class GuildPlayer {
     this._idleTimer = setTimeout(() => {
       console.log(`[${this.guildId}] Idle timeout — auto-disconnecting.`);
       if (this.textChannel) {
-        this.textChannel.send('👋 已經 3 分鐘沒有新歌了，自動離開語音頻道！').catch(() => {});
+        this.textChannel.send('👋 已經 3 分鐘沒有新歌了，自動離開語音頻道！').catch(() => { });
       }
       this.destroy();
       guildPlayers.delete(this.guildId);
@@ -344,25 +365,18 @@ class GuildPlayer {
     }
   }
 
-  _clearHistoryTimer() {
-    if (this._historyTimer) {
-      clearTimeout(this._historyTimer);
-      this._historyTimer = null;
-    }
-  }
-
   /**
    * Radio Mode implementation: Picks a random song from history to play.
    * Can be improved with actual YouTube recommendations later.
    */
   _startRadio() {
     const historicalSong = db.getRandomFromHistory(this.guildId);
-    
+
     if (historicalSong) {
       if (this.textChannel) {
-        this.textChannel.send('📻 清單空了，**智慧電台**啟動！播一首這台的人都愛聽的歌曲...').catch(() => {});
+        this.textChannel.send('📻 清單空了，**智慧電台**啟動！播一首這台的人都愛聽的歌曲...').catch(() => { });
       }
-      
+
       const songToPlay = {
         title: historicalSong.title,
         url: historicalSong.url,
@@ -370,7 +384,7 @@ class GuildPlayer {
         requestedById: 'radio',
         requestedByName: '智慧電台'
       };
-      
+
       this.queue.push(songToPlay);
       this.playNext();
     } else {

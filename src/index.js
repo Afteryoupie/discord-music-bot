@@ -2,6 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', 'setting.
 
 const { Client, GatewayIntentBits, Events } = require('discord.js');
 const { loadCommands } = require('./handlers/commandHandler');
+const { handleButton } = require('./handlers/buttonHandler');
 
 async function main() {
   // @discordjs/voice will use Node.js built-in AES-256-GCM (aead_aes256_gcm_rtpsize)
@@ -37,6 +38,10 @@ async function main() {
   });
 
   client.on(Events.InteractionCreate, async interaction => {
+    if (interaction.isButton()) {
+      return handleButton(interaction);
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     const command = client.commands.get(interaction.commandName);

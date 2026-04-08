@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const {
   joinVoiceChannel,
   VoiceConnectionStatus,
@@ -7,7 +7,8 @@ const {
 const yts = require('yt-search');
 const { isYouTubeURL, getVideoMetadata } = require('../music/audioPipeline');
 const { getOrCreate } = require('../music/GuildPlayer');
-const { isPlaylist, fetchPlaylist } = require('../music/playlistHelper');
+const { fetchPlaylist, isPlaylist } = require('../music/playlistHelper');
+const { createPlayingEmbed, createPlaylistAddedEmbed, createErrorEmbed, getPlayerButtons } = require('../utils/embedGenerator');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -35,50 +36,31 @@ module.exports = {
     const query = interaction.options.getString('song');
     await interaction.deferReply();
 
-    const gp = getOrCreate(interaction.guildId);
-    gp.textChannel = interaction.channel;
-
     try {
-      // 2. Handle Playlist
-      if (isPlaylist(query)) {
-        await interaction.editReply('🔍 正在解析播放清單，請稍候...');
-        const playlistSongs = await fetchPlaylist(query);
-        
-        if (!playlistSongs || playlistSongs.length === 0) {
-          return interaction.editReply('❌ 無法抓取播放清單內容，可能是私人的或連結無效。');
-        }
-
-        // Ensure voice connection before batch enqueueing
-        await ensureConnection(gp, voiceChannel, interaction);
-
-        let addedCount = 0;
-        playlistSongs.forEach((s) => {
-          gp.enqueue({
-            title: s.title,
-            url: s.url,
-            duration: '?', // Duration not fetched in flat-playlist for speed
-            requestedBy: interaction.user.username,
-            requestedById: interaction.user.id
-          });
-          addedCount++;
-        });
-
-        const playlistEmbed = new EmbedBuilder()
-          .setTitle('✅ 播放清單已加入')
-          .setDescription(`成功從清單中加入了 **${addedCount}** 首歌曲！`)
-          .setColor(0x2ecc71)
-          .setFooter({ text: `點歌者：${interaction.user.username}` });
-
-        return interaction.editReply({ content: null, embeds: [playlistEmbed] });
-      }
-
-      // 3. Resolve Single URL or Search
+      // 2. Format query and check for playlist
+      const isPl = isYouTubeURL(query) && isPlaylist(query);
+      let playlistSongs = [];
       let videoUrl;
       let videoTitle = 'Unknown';
       let videoDuration = '?';
 
-      if (isYouTubeURL(query)) {
+      // Always get/create GuildPlayer early
+      const gp = getOrCreate(interaction.guildId);
+      gp.textChannel = interaction.channel;
+
+      if (isPl) {
+        await interaction.editReply('🔄 正在讀取播放清單內容，這可能需要幾秒鐘...');
+        const items = await fetchPlaylist(query);
+        if (!items || items.length === 0) {
+          return interaction.editReply({ embeds: [createErrorEmbed('無法讀取該播放清單。請確認播放清單是公開的。')] });
+        }
+        playlistSongs = items.slice(0, gp.playlistLimit);
+        if (items.length > gp.playlistLimit) {
+          playlistSongs._truncated = gp.playlistLimit;
+        }
+      } else if (isYouTubeURL(query)) {
         videoUrl = query;
+        // Fetch metadata via yt-dlp to bypass 429 rate limit
         const info = await getVideoMetadata(videoUrl);
         if (info) {
           videoTitle = info.title;
@@ -89,69 +71,79 @@ module.exports = {
         const searchResult = await yts(query);
         const videos = searchResult.videos;
         if (!videos || videos.length === 0) {
-          return interaction.editReply('❌ 找不到結果，試試直接貼 YouTube 網址。');
+          return interaction.editReply({ embeds: [createErrorEmbed('找不到結果，試試直接貼 YouTube 網址。')] });
         }
         videoUrl = videos[0].url;
         videoTitle = videos[0].title;
-        videoDuration = videos[0].duration.timestamp;
+        const dur = videos[0].duration;
+        if (dur) videoDuration = `${dur.minutes}:${String(dur.seconds).padStart(2, '0')}`;
       }
 
       // 4. Ensure voice connection
-      await ensureConnection(gp, voiceChannel, interaction);
+      if (!gp.connection || gp.connection.state.status === VoiceConnectionStatus.Destroyed) {
+        const connection = joinVoiceChannel({
+          channelId: voiceChannel.id,
+          guildId: interaction.guildId,
+          adapterCreator: interaction.guild.voiceAdapterCreator,
+        });
 
-      // 5. Enqueue
-      const song = {
-        title: videoTitle,
-        url: videoUrl,
-        duration: videoDuration,
-        requestedBy: interaction.user.username,
-        requestedById: interaction.user.id,
-      };
+        try {
+          await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+          console.log(`[${interaction.guildId}] Voice connection READY`);
+        } catch (err) {
+          console.error(`[${interaction.guildId}] Voice connection failed:`, err.message);
+          try { connection.destroy(); } catch { }
+          return interaction.editReply('❌ 無法連接到語音頻道，請稍後再試。');
+        }
 
-      const result = gp.enqueue(song);
-
-      const songEmbed = new EmbedBuilder()
-        .setTitle(result === 'playing' ? '🎵 正在播放' : '✅ 已加入待播清單')
-        .setDescription(`**[${videoTitle}](${videoUrl})**`)
-        .addFields(
-          { name: '🕒 時長', value: `\`${videoDuration}\``, inline: true },
-          { name: '👤 點歌者', value: `\`${interaction.user.username}\``, inline: true }
-        )
-        .setColor(result === 'playing' ? 0x9b59b6 : 0x3498db);
-
-      if (result !== 'playing') {
-        const position = gp.queue.length;
-        songEmbed.setFooter({ text: `在清單中的位置：${position}` });
+        gp.setConnection(connection);
       }
 
-      await interaction.editReply({ content: null, embeds: [songEmbed] });
+      // 5. Enqueue
+      const requestedBy = interaction.user.displayName || interaction.user.username;
 
+      if (isPl) {
+        let firstSongStr = '';
+        playlistSongs.forEach((s, idx) => {
+          const song = {
+            title: s.title,
+            url: s.url,
+            duration: '?', // Flat playlist doesn't provide duration easily
+            requestedBy
+          };
+          const res = gp.enqueue(song);
+          if (res === 'playing' && idx === 0) {
+            firstSongStr = s.title;
+          }
+        });
+        
+        await interaction.editReply({
+          content: '',
+          embeds: [createPlaylistAddedEmbed(playlistSongs.length, query, playlistSongs._truncated)]
+        });
+      } else {
+        const song = {
+          title: videoTitle,
+          url: videoUrl,
+          duration: videoDuration,
+          requestedBy
+        };
+
+        const result = gp.enqueue(song);
+
+        if (result === 'playing') {
+          await interaction.editReply({ 
+            embeds: [createPlayingEmbed(song, 0)],
+            components: [getPlayerButtons(false)]
+          });
+        } else {
+          const position = gp.queue.length;
+          await interaction.editReply({ embeds: [createPlayingEmbed(song, position)] });
+        }
+      }
     } catch (error) {
       console.error('[/play error]', error);
-      return interaction.editReply(`❌ 錯誤：${error.message}`);
+      return interaction.editReply({ embeds: [createErrorEmbed(`錯誤：${error.message}`)] });
     }
   },
 };
-
-/**
- * Helper to handle voice connection logic.
- */
-async function ensureConnection(gp, voiceChannel, interaction) {
-  if (!gp.connection || gp.connection.state.status === VoiceConnectionStatus.Destroyed) {
-    const connection = joinVoiceChannel({
-      channelId: voiceChannel.id,
-      guildId: interaction.guildId,
-      adapterCreator: interaction.guild.voiceAdapterCreator,
-    });
-
-    try {
-      await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-      console.log(`[${interaction.guildId}] Voice connection READY`);
-      gp.setConnection(connection);
-    } catch (err) {
-      console.error(`[${interaction.guildId}] Voice connection failed:`, err.message);
-      try { connection.destroy(); } catch {}
-      throw new Error('無法連接到語音頻道，請稍後再試。');
-    }
-  }
-}

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { guildPlayers } = require('../music/GuildPlayer');
+const { createPlayingEmbed, createErrorEmbed, getPlayerButtons } = require('../utils/embedGenerator');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -11,28 +12,21 @@ module.exports = {
 
     if (!gp || !gp.nowPlaying) {
       return interaction.reply({
-        content: '❌ 目前沒有正在播放的歌曲！',
+        embeds: [createErrorEmbed('目前沒有正在播放的歌曲！')],
         ephemeral: true,
       });
     }
 
     const song = gp.nowPlaying;
-    const status = gp.isPaused() ? '⏸️ 已暫停' : '🎵 正在播放';
-    const queueInfo = gp.queue.length > 0
-      ? `📋 播放清單中還有 **${gp.queue.length}** 首`
-      : '📋 播放清單已空';
+    const embed = createPlayingEmbed(song, 0);
 
-    const lines = [
-      `${status}`,
-      ``,
-      `🎶 **${song.title}**`,
-      `⏱️ 時長：${song.duration}`,
-      `👤 點歌者：${song.requestedBy}`,
-      `🔗 ${song.url}`,
-      ``,
-      queueInfo,
-    ];
+    if (gp.isPaused()) {
+      embed.setAuthor({ name: '⏸️ 已暫停' });
+    }
 
-    return interaction.reply(lines.join('\n'));
+    return interaction.reply({ 
+      embeds: [embed],
+      components: [getPlayerButtons(gp.isPaused())]
+    });
   },
 };

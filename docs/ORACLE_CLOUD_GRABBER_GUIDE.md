@@ -20,6 +20,12 @@
 
 ## 🏃 執行方式
 
+### 0. 進入專案目錄
+開啟終端機後，請先進入專案所在資料夾：
+```bash
+cd /Users/linjiade/.gemini/antigravity/scratch/music-bot
+```
+
 ### 1. 給予執行權限
 首次使用前，請先執行：
 ```bash
