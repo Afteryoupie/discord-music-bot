@@ -31,5 +31,6 @@ node/
 # Dev helper scripts
 npm.sh
 data/*.db
+data/*.sqlite
 data/*.db-shm
 data/*.db-wal

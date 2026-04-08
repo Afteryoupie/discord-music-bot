@@ -15,6 +15,7 @@ const {
 } = require('@discordjs/voice');
 const { createAudioPipeline } = require('./audioPipeline');
 const db = require('../database/DbManager');
+const { createPlayingEmbed, getPlayerButtons } = require('../utils/embedGenerator');
 
 // How long (ms) to wait after queue empties before auto-disconnecting
 const IDLE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -58,6 +59,9 @@ class GuildPlayer {
 
     /** @type {number} Max limit for playlist import */
     this.playlistLimit = 50;
+
+    /** @type {import('discord.js').Message | null} Track the last sent dashboard message for cleanup */
+    this.lastEmbedMessage = null;
 
     this._setupPlayer();
   }
@@ -208,28 +212,23 @@ class GuildPlayer {
 
       this.player.play(resource);
 
-      // Notify text channel
+      // Notify text channel - Stick the dashboard at bottom after any transitions
       if (this.textChannel) {
-        const queueInfo = this.queue.length > 0
-          ? `\n📋 播放清單中還有 **${this.queue.length}** 首`
-          : '';
-        this.textChannel.send(
-          `🎵 正在播放：**${song.title}** (${song.duration})\n` +
-          `👤 點歌者：${song.requestedBy}${queueInfo}`
-        ).catch(() => { });
+        this.resendDashboard();
       }
     } catch (error) {
       console.error(`[${this.guildId}] Failed to start pipeline:`, error.message);
       this.nowPlaying = null;
 
       if (this.textChannel) {
-        this.textChannel.send(`❌ 無法播放 **${song.title}**：${error.message}`).catch(() => { });
+        this.textChannel.send({ embeds: [createErrorEmbed(`無法播放 **${song.title}**：${error.message}`)] }).catch(() => { });
       }
 
-      // Try next song
+      // Try next song or cleanup dashboard if nothing left
       if (this.queue.length > 0) {
         this.playNext();
       } else {
+        this._cleanupLastMessage();
         this._startIdleTimer();
       }
     }
@@ -302,6 +301,40 @@ class GuildPlayer {
   }
 
   /**
+   * Resend the player dashboard to the bottom of the channel.
+   */
+  async resendDashboard() {
+    if (!this.textChannel || !this.nowPlaying) return;
+
+    await this._cleanupLastMessage();
+
+    try {
+      const msg = await this.textChannel.send({
+        embeds: [createPlayingEmbed(this.nowPlaying, 0)],
+        components: [getPlayerButtons(this.isPaused(), this.isRadioMode)],
+      });
+      this.lastEmbedMessage = msg;
+    } catch (err) {
+      console.error(`[${this.guildId}] Failed to resend dashboard:`, err.message);
+    }
+  }
+
+  /**
+   * Delete the previous player dashboard message to keep the channel clean.
+   */
+  async _cleanupLastMessage() {
+    if (this.lastEmbedMessage) {
+      try {
+        await this.lastEmbedMessage.delete();
+      } catch (err) {
+        // Message might already be deleted or missing permissions
+      } finally {
+        this.lastEmbedMessage = null;
+      }
+    }
+  }
+
+  /**
    * Destroy the player and disconnect from voice. Cleans up all state.
    */
   destroy() {
@@ -317,6 +350,7 @@ class GuildPlayer {
     }
 
     this._reset();
+    this._cleanupLastMessage();
   }
 
   // ─── Internal Helpers ─────────────────────────────────────────

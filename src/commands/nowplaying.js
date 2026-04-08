@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { guildPlayers } = require('../music/GuildPlayer');
-const { createPlayingEmbed, createErrorEmbed, getPlayerButtons } = require('../utils/embedGenerator');
+const { createErrorEmbed } = require('../utils/embedGenerator');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,16 +17,10 @@ module.exports = {
       });
     }
 
-    const song = gp.nowPlaying;
-    const embed = createPlayingEmbed(song, 0);
-
-    if (gp.isPaused()) {
-      embed.setAuthor({ name: '⏸️ 已暫停' });
-    }
-
-    return interaction.reply({ 
-      embeds: [embed],
-      components: [getPlayerButtons(gp.isPaused())]
-    });
+    // Acknowledge interaction (ephemeral) or just call resend
+    await interaction.reply({ content: '🔍 正在取得當前播放狀態...', ephemeral: true });
+    
+    // Centralized sticky dashboard resend
+    await gp.resendDashboard();
   },
 };
