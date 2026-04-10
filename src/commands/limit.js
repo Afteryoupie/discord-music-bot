@@ -19,9 +19,14 @@ module.exports = {
     //   return interaction.reply({ content: '❌ 只有伺服器管理員可以更改此設定。', ephemeral: true });
     // }
 
+    const db = require('../database/DbManager');
     const count = interaction.options.getInteger('count');
-    const gp = getOrCreate(interaction.guildId);
+    
+    // Save to database permanently
+    db.setPlaylistLimit(interaction.guildId, count);
 
+    // Update current session if active (getOrCreate ensures it applies to the current instance)
+    const gp = getOrCreate(interaction.guildId);
     gp.playlistLimit = count;
 
     return interaction.reply(`✅ 已將本伺服器的單次清單匯入上限調整為 **${count}** 首！\n下一次使用 \`/play\` 貼上歌單時將會套用此限制。`);

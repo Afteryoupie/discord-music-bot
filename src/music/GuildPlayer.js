@@ -58,7 +58,7 @@ class GuildPlayer {
     this._historyTimer = null;
 
     /** @type {number} Max limit for playlist import */
-    this.playlistLimit = 50;
+    this.playlistLimit = db.getPlaylistLimit(this.guildId);
 
     /** @type {import('discord.js').Message | null} Track the last sent dashboard message for cleanup */
     this.lastEmbedMessage = null;
@@ -79,12 +79,7 @@ class GuildPlayer {
       console.log(`[${this.guildId}] Player idle`);
       this._cleanupPipeline();
       this.nowPlaying = null;
-
-      if (this.queue.length > 0) {
-        this.playNext();
-      } else {
-        this._startIdleTimer();
-      }
+      this.playNext();
     });
 
     // On player error → log, notify, skip to next
@@ -100,11 +95,7 @@ class GuildPlayer {
       }
 
       // Auto-skip to next song
-      if (this.queue.length > 0) {
-        this.playNext();
-      } else {
-        this._startIdleTimer();
-      }
+      this.playNext();
     });
 
     // Log state changes

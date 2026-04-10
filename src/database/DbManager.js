@@ -38,6 +38,14 @@ function init() {
   
   // Index for performance onguild-specific lookups
   db.exec(`CREATE INDEX IF NOT EXISTS idx_guild ON play_history(guild_id);`);
+
+  // Guild settings
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS guild_settings (
+      guild_id TEXT PRIMARY KEY,
+      playlist_limit INTEGER DEFAULT 50
+    );
+  `);
 }
 
 /**
@@ -111,10 +119,42 @@ function getRandomFromHistory(guildId) {
   }
 }
 
+/**
+ * Update guild playlist limit.
+ */
+function setPlaylistLimit(guildId, limit) {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO guild_settings (guild_id, playlist_limit)
+      VALUES (?, ?)
+      ON CONFLICT(guild_id) DO UPDATE SET playlist_limit = excluded.playlist_limit
+    `);
+    stmt.run(guildId, limit);
+  } catch (error) {
+    console.error('[Database Error] setPlaylistLimit failed:', error.message);
+  }
+}
+
+/**
+ * Get guild playlist limit.
+ */
+function getPlaylistLimit(guildId) {
+  try {
+    const stmt = db.prepare(`SELECT playlist_limit FROM guild_settings WHERE guild_id = ?`);
+    const row = stmt.get(guildId);
+    return row ? row.playlist_limit : 50;
+  } catch (error) {
+    console.error('[Database Error] getPlaylistLimit failed:', error.message);
+    return 50;
+  }
+}
+
 init();
 
 module.exports = {
   recordHistory,
   getHistory,
-  getRandomFromHistory
+  getRandomFromHistory,
+  setPlaylistLimit,
+  getPlaylistLimit
 };
