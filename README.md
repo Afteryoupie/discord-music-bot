@@ -82,9 +82,29 @@ node scripts/deploy-commands.js
 
 ### 5. 啟動機器人
 
+**開發模式：**
 ```bash
 node src/index.js
 ```
+
+**正式環境 (24/7 運作)：**
+推薦使用 PM2 管理進程：
+```bash
+# 啟動並命名
+pm2 start npm --name "music-bot" -- run start
+
+# 設定每日凌晨 4 點自動重啟 (確保穩定性)
+pm2 restart music-bot --cron-restart="0 4 * * *"
+pm2 save
+```
+
+---
+
+## 🛠️ 日常維護
+我們準備了一份 [維護指令速查表](./CHEATSHEET.md)，包含：
+- 查看運行狀態與日誌
+- 手動重啟與更新
+- GitHub 同步流程
 
 ## 🎮 指令列表
 

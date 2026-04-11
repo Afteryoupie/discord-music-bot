@@ -82,9 +82,29 @@ node scripts/deploy-commands.js
 
 ### 5. Start the bot
 
+**Development Mode:**
 ```bash
 node src/index.js
 ```
+
+**Production Mode (24/7 Hosting):**
+It is recommended to use PM2 to manage the bot process:
+```bash
+# Start and name the bot
+pm2 start npm --name "music-bot" -- run start
+
+# Setup daily auto-restart at 4 AM (for stability)
+pm2 restart music-bot --cron-restart="0 4 * * *"
+pm2 save
+```
+
+---
+
+## 🛠️ Maintenance
+We have prepared a [Maintenance Cheatsheet](./CHEATSHEET.md) (Traditional Chinese) which includes:
+- Checking status and logs
+- Manual restarts and updates
+- GitHub sync workflow
 
 ## 🎮 Commands
 
