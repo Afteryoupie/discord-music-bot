@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { guildPlayers } = require('../music/GuildPlayer');
 const { createQueueEmbed } = require('../utils/embedGenerator');
 
@@ -13,7 +13,7 @@ module.exports = {
     if (!gp) {
       return interaction.reply({
         embeds: [createQueueEmbed([], null, false)],
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { getOrCreate, guildPlayers } = require('../music/GuildPlayer');
 
 module.exports = {
@@ -12,7 +12,7 @@ module.exports = {
     if (!gp || !gp.connection) {
       return interaction.reply({
         content: '❌ 我目前不在任何語音頻道中！',
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 

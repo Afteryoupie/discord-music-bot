@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const db = require('../database/DbManager');
 
 module.exports = {
@@ -12,7 +12,7 @@ module.exports = {
     if (!history || history.length === 0) {
       return interaction.reply({
         content: '📜 目前還沒有播放紀錄喔！快去點幾首歌吧。',
-        ephemeral: true
+        flags: [MessageFlags.Ephemeral]
       });
     }
 

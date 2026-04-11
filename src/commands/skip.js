@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { guildPlayers } = require('../music/GuildPlayer');
 
 module.exports = {
@@ -12,7 +12,7 @@ module.exports = {
     if (!gp || !gp.isPlaying()) {
       return interaction.reply({
         content: '❌ 目前沒有正在播放的歌曲！',
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 

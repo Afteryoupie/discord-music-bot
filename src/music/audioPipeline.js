@@ -36,6 +36,7 @@ function isYouTubeURL(str) {
 function createAudioPipeline(videoUrl) {
   const ytdlp = spawn(YTDLP_PATH, [
     '--cache-dir', YTDLP_CACHE,
+    '--no-warnings',
     '-f', 'bestaudio/best',
     '--no-playlist',
     '-o', '-',       // pipe to stdout
@@ -61,19 +62,30 @@ function createAudioPipeline(videoUrl) {
   // Pipe yt-dlp output into ffmpeg
   ytdlp.stdout.pipe(ffmpeg.stdin);
 
-  // Log yt-dlp progress (keep minimal)
+  // Log yt-dlp progress and errors
   ytdlp.stderr.on('data', d => {
     const line = d.toString().trim();
-    if (line.includes('[download]') || line.includes('ERROR')) {
-      process.stdout.write(`[yt-dlp] ${line}\n`);
+    if (!line) return;
+    // Log errors and critical information
+    if (line.includes('ERROR') || line.includes('error')) {
+      console.error(`[yt-dlp error] ${line}`);
+    } else if (line.includes('[download]')) {
+      // Optional: Log progress sparingly if needed
     }
   });
 
-  // Suppress ffmpeg banner noise, only log errors
+  // Suppress ffmpeg banner noise, only log real errors
   ffmpeg.stderr.on('data', d => {
     const line = d.toString().trim();
+    if (!line) return;
+    // FFmpeg is very talkative on stderr, only catch fatal errors
     if (line.includes('Error') || line.includes('error')) {
-      console.error(`[ffmpeg] ${line}`);
+      // Ignore "Invalid data found when processing input" if it looks like a pipe issue
+      if (line.includes('Invalid data found') && line.includes('pipe:0')) {
+        console.error(`[ffmpeg] 入源資料無效 (通常是 yt-dlp 下載失敗)`);
+      } else {
+        console.error(`[ffmpeg] ${line}`);
+      }
     }
   });
 

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { guildPlayers } = require('../music/GuildPlayer');
 
 module.exports = {
@@ -12,7 +12,7 @@ module.exports = {
     if (!gp || gp.queue.length <= 1) {
       return interaction.reply({
         content: '❌ 目前播放清單數量太少，無法洗牌！',
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 

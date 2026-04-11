@@ -302,6 +302,9 @@ class GuildPlayer {
 
     await this._cleanupLastMessage();
 
+    // Re-check after await as it might have been destroyed/nullified
+    if (!this.textChannel || !this.nowPlaying) return;
+
     try {
       const msg = await this.textChannel.send({
         embeds: [createPlayingEmbed(this.nowPlaying, 0)],

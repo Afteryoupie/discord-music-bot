@@ -7,7 +7,7 @@
  *   - Search keywords (via yt-search)
  */
 
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { joinVoiceChannel, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
 const yts = require('yt-search');
 const { isYouTubeURL, getVideoMetadata } = require('../music/audioPipeline');
@@ -35,12 +35,12 @@ module.exports = {
     // 1. Must be in a voice channel
     const voiceChannel = interaction.member?.voice?.channel;
     if (!voiceChannel) {
-      return interaction.reply({ content: '❌ 你需要先加入一個語音頻道！', ephemeral: true });
+      return interaction.reply({ content: '❌ 你需要先加入一個語音頻道！', flags: [MessageFlags.Ephemeral] });
     }
 
     const permissions = voiceChannel.permissionsFor(interaction.client.user);
     if (!permissions.has('Connect') || !permissions.has('Speak')) {
-      return interaction.reply({ content: '❌ 我沒有權限加入或在該頻道說話！', ephemeral: true });
+      return interaction.reply({ content: '❌ 我沒有權限加入或在該頻道說話！', flags: [MessageFlags.Ephemeral] });
     }
 
     const query = interaction.options.getString('song');

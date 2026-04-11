@@ -5,6 +5,7 @@
  * Custom IDs: btn_pause_resume, btn_skip, btn_shuffle, btn_radio, btn_queue
  */
 
+const { MessageFlags } = require('discord.js');
 const { guildPlayers } = require('../music/GuildPlayer');
 const { createPlayingEmbed, getPlayerButtons, createQueueEmbed } = require('../utils/embedGenerator');
 
@@ -15,7 +16,7 @@ async function handleButton(interaction) {
   if (!gp || !gp.nowPlaying) {
     return interaction.reply({
       content: '❌ 目前沒有正在播放的歌曲！',
-      ephemeral: true,
+      flags: [MessageFlags.Ephemeral],
     });
   }
 
@@ -58,7 +59,7 @@ async function handleButton(interaction) {
       if (!ok) {
         return interaction.reply({
           content: '❌ 播放清單數量太少，無法洗牌！',
-          ephemeral: true,
+          flags: [MessageFlags.Ephemeral],
         });
       }
 
@@ -86,7 +87,7 @@ async function handleButton(interaction) {
       const embed = createQueueEmbed(gp.queue, gp.nowPlaying, gp.isPaused(), gp.isRadioMode);
       return interaction.reply({
         embeds: [embed],
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 
@@ -94,7 +95,7 @@ async function handleButton(interaction) {
     console.error('[Button Error]', err);
     try {
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: '❌ 操作發生錯誤，請重試。', ephemeral: true });
+        await interaction.reply({ content: '❌ 操作發生錯誤，請重試。', flags: [MessageFlags.Ephemeral] });
       }
     } catch { /* ignore */ }
   }

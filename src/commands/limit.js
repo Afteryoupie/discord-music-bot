@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { getOrCreate } = require('../music/GuildPlayer');
 
 module.exports = {
@@ -16,7 +16,7 @@ module.exports = {
   async execute(interaction) {
     // Optional permissions check can go here (e.g., admin only):
     // if (!interaction.member.permissions.has('ManageGuild')) {
-    //   return interaction.reply({ content: '❌ 只有伺服器管理員可以更改此設定。', ephemeral: true });
+    //   return interaction.reply({ content: '❌ 只有伺服器管理員可以更改此設定。', flags: [MessageFlags.Ephemeral] });
     // }
 
     const db = require('../database/DbManager');
