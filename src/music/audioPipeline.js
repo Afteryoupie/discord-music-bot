@@ -110,11 +110,31 @@ function createAudioPipeline(videoUrl) {
  */
 function getVideoMetadata(videoUrl) {
   return new Promise((resolve) => {
-    const { exec } = require('child_process');
-    const cmd = `"${YTDLP_PATH}" --no-warnings --cache-dir "${YTDLP_CACHE}" --print "%(title)s|%(duration_string)s" "${videoUrl}"`;
-    exec(cmd, { timeout: 15000 }, (error, stdout) => {
-      if (error) {
-        console.error('[yt-dlp metadata error]', error.message);
+    const { spawn } = require('child_process');
+    const args = [
+      '--no-warnings',
+      '--cache-dir', YTDLP_CACHE,
+      '--print', '%(title)s|%(duration_string)s',
+      videoUrl,
+    ];
+    
+    const child = spawn(YTDLP_PATH, args);
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', data => stdout += data.toString());
+    child.stderr.on('data', data => stderr += data.toString());
+
+    const timeout = setTimeout(() => {
+      child.kill();
+      console.error('[yt-dlp metadata timeout]');
+      resolve(null);
+    }, 15000);
+
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (code !== 0) {
+        if (stderr.trim()) console.error('[yt-dlp metadata error]', stderr.trim());
         return resolve(null);
       }
       const parts = stdout.trim().split('|');
@@ -123,6 +143,12 @@ function getVideoMetadata(videoUrl) {
       } else {
         resolve({ title: parts[0] || 'Unknown', duration: '?' });
       }
+    });
+
+    child.on('error', (err) => {
+      clearTimeout(timeout);
+      console.error('[yt-dlp metadata spawn error]', err.message);
+      resolve(null);
     });
   });
 }

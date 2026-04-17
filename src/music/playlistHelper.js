@@ -18,15 +18,34 @@ const YTDLP_CACHE = path.join(__dirname, '..', '..', '.ytdlp-cache');
  */
 function fetchPlaylist(playlistUrl) {
   return new Promise((resolve) => {
-    // --flat-playlist: only list titles/IDs, don't fetch full metadata
-    // --print: format output
-    const cmd = `"${YTDLP_PATH}" --no-warnings --cache-dir "${YTDLP_CACHE}" --flat-playlist --print "%(title)s|%(id)s" "${playlistUrl}"`;
+    const { spawn } = require('child_process');
+    const args = [
+      '--no-warnings',
+      '--cache-dir', YTDLP_CACHE,
+      '--flat-playlist',
+      '--print', '%(title)s|%(id)s',
+      playlistUrl,
+    ];
     
     console.log(`[Playlist] Extracting: ${playlistUrl}`);
     
-    exec(cmd, { timeout: 30000 }, (error, stdout) => {
-      if (error) {
-        console.error('[Playlist Error]', error.message);
+    const child = spawn(YTDLP_PATH, args);
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', data => stdout += data.toString());
+    child.stderr.on('data', data => stderr += data.toString());
+
+    const timeout = setTimeout(() => {
+      child.kill();
+      console.error('[Playlist timeout]');
+      resolve([]);
+    }, 60000); // Playlists can be large, 60s timeout
+
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (code !== 0) {
+        if (stderr.trim()) console.error('[Playlist Error]', stderr.trim());
         return resolve([]);
       }
 
@@ -46,6 +65,12 @@ function fetchPlaylist(playlistUrl) {
 
       console.log(`[Playlist] Found ${songs.length} songs`);
       resolve(songs);
+    });
+
+    child.on('error', (err) => {
+      clearTimeout(timeout);
+      console.error('[Playlist spawn error]', err.message);
+      resolve([]);
     });
   });
 }

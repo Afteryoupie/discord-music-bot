@@ -19,14 +19,12 @@
   "dependencies": {
     "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.19.2",
-    "@distube/ytdl-core": "^4.16.12",
     "better-sqlite3": "^12.8.0",
     "discord.js": "^14.26.2",
     "dotenv": "^16.4.5",
     "ffmpeg-static": "^5.2.0",
     "play-dl": "^1.9.7",
     "spotify-url-info": "^3.3.0",
-    "yt-search": "^2.13.1",
-    "ytdl-core": "^4.11.5"
+    "yt-search": "^2.13.1"
   }
 }

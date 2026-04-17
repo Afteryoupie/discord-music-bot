@@ -87,7 +87,7 @@ async function handleButton(interaction) {
       const embed = createQueueEmbed(gp.queue, gp.nowPlaying, gp.isPaused(), gp.isRadioMode);
       return interaction.reply({
         embeds: [embed],
-        flags: [MessageFlags.Ephemeral],
+        ephemeral: true,
       });
     }
 
@@ -95,7 +95,9 @@ async function handleButton(interaction) {
     console.error('[Button Error]', err);
     try {
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: '❌ 操作發生錯誤，請重試。', flags: [MessageFlags.Ephemeral] });
+        await interaction.reply({ content: '❌ 操作發生錯誤，請重試。', ephemeral: true });
+      } else {
+        await interaction.followUp({ content: '❌ 執行操作時發生錯誤。', ephemeral: true });
       }
     } catch { /* ignore */ }
   }

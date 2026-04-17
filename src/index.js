@@ -1,6 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', 'setting.env') });
 
-const { Client, GatewayIntentBits, Events } = require('discord.js');
+const { Client, GatewayIntentBits, Events, MessageFlags } = require('discord.js');
 const { loadCommands } = require('./handlers/commandHandler');
 const { handleButton } = require('./handlers/buttonHandler');
 const { guildPlayers } = require('./music/GuildPlayer');
@@ -52,7 +52,7 @@ async function main() {
       await command.execute(interaction);
     } catch (error) {
       console.error(`[Command error] /${interaction.commandName}:`, error);
-      const msg = { content: 'An error occurred. Please try again.', flags: 64 };
+      const msg = { content: '❌ 發生錯誤，請稍後再試。', flags: [MessageFlags.Ephemeral] };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(msg).catch(() => {});
       } else {

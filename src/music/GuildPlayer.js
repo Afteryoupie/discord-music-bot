@@ -66,6 +66,9 @@ class GuildPlayer {
     /** @type {NodeJS.Timeout | null} Timer for empty channel auto-leave */
     this._emptyChannelTimer = null;
 
+    /** @type {boolean} Lock for dashboard updates */
+    this._isResending = false;
+
     this._setupPlayer();
   }
 
@@ -298,14 +301,15 @@ class GuildPlayer {
    * Resend the player dashboard to the bottom of the channel.
    */
   async resendDashboard() {
-    if (!this.textChannel || !this.nowPlaying) return;
+    if (!this.textChannel || !this.nowPlaying || this._isResending) return;
 
-    await this._cleanupLastMessage();
-
-    // Re-check after await as it might have been destroyed/nullified
-    if (!this.textChannel || !this.nowPlaying) return;
-
+    this._isResending = true;
     try {
+      await this._cleanupLastMessage();
+
+      // Re-check after await as it might have been destroyed/nullified
+      if (!this.textChannel || !this.nowPlaying) return;
+
       const msg = await this.textChannel.send({
         embeds: [createPlayingEmbed(this.nowPlaying, 0)],
         components: [getPlayerButtons(this.isPaused(), this.isRadioMode)],
@@ -313,6 +317,8 @@ class GuildPlayer {
       this.lastEmbedMessage = msg;
     } catch (err) {
       console.error(`[${this.guildId}] Failed to resend dashboard:`, err.message);
+    } finally {
+      this._isResending = false;
     }
   }
 
