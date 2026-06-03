@@ -28,6 +28,14 @@
   ```bash
   pm2 monit
   ```
+- **從零開始啟動 / 重新指定執行資料夾**
+  *(當您遇到「找不到 package.json」錯誤時，可使用此方式重新建立)*
+  ```bash
+  pm2 delete music-bot
+  cd ~/discord-music-bot  # 請替換為您實際的機器人資料夾名稱
+  pm2 start npm --name "music-bot" -- start
+  pm2 save
+  ```
 
 ---
 
@@ -68,6 +76,14 @@ pm2 restart music-bot
 - **回到上一層資料夾**
   ```bash
   cd ..
+  ```
+- **刪除檔案**
+  ```bash
+  rm 檔案名稱
+  ```
+- **刪除整個資料夾及其內容 (危險操作，請再三確認)**
+  ```bash
+  rm -rf 資料夾名稱
   ```
 
 ---
