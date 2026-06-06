@@ -10,7 +10,7 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { joinVoiceChannel, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
 const yts = require('yt-search');
-const { isYouTubeURL, getVideoMetadata } = require('../music/audioPipeline');
+const { isYouTubeURL, getVideoMetadata, prewarmPipeline } = require('../music/audioPipeline');
 const { getOrCreate } = require('../music/GuildPlayer');
 const { fetchPlaylist, isPlaylist } = require('../music/playlistHelper');
 const {
@@ -117,6 +117,12 @@ module.exports = {
       }
 
       const song = { title: videoTitle, url: videoUrl, duration: videoDuration, requestedBy };
+
+      // Prewarm: start yt-dlp + ffmpeg NOW so data is already buffering
+      // before playNext() is called. This eliminates first-song cold-start delay.
+      // Only do this for single songs (not playlists) to avoid wasting resources.
+      song.prewarm = prewarmPipeline(videoUrl);
+
       const enqueueResult = gp.enqueue(song);
 
       const pos = enqueueResult === 'playing' ? 1 : gp.queue.length;

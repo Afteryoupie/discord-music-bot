@@ -199,7 +199,16 @@ class GuildPlayer {
         db.recordHistory(this.guildId, song);
       }, 30000);
 
-      const { stream, cleanup } = createAudioPipeline(song.url);
+      // Use prewarmed pipeline if available (started early in play.js to reduce cold-start delay)
+      let stream, cleanup;
+      if (song.prewarm && song.prewarm.url === song.url) {
+        console.log(`[${this.guildId}] Using prewarmed pipeline for: ${song.title}`);
+        ({ stream, cleanup } = song.prewarm);
+        delete song.prewarm; // free reference
+      } else {
+        console.log(`[${this.guildId}] No prewarm — creating pipeline now for: ${song.title}`);
+        ({ stream, cleanup } = createAudioPipeline(song.url));
+      }
       this._pipelineCleanup = cleanup;
 
       const resource = createAudioResource(stream, {
@@ -359,6 +368,13 @@ class GuildPlayer {
   // ─── Internal Helpers ─────────────────────────────────────────
 
   _reset() {
+    // Clean up any prewarmed pipelines still sitting in the queue
+    for (const song of this.queue) {
+      if (song.prewarm) {
+        try { song.prewarm.cleanup(); } catch {}
+        delete song.prewarm;
+      }
+    }
     this.queue = [];
     this.nowPlaying = null;
     this.connection = null;

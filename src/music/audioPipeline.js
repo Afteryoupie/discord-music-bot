@@ -27,10 +27,10 @@ function isYouTubeURL(str) {
 }
 
 /**
- * Create a piped audio stream: yt-dlp stdout → ffmpeg stdin → ffmpeg stdout (PCM s16le)
+ * Create a piped audio stream: yt-dlp stdout → ffmpeg stdin → ffmpeg stdout (Opus)
  *
  * Returns an object: { stream, cleanup }
- *   - stream: readable PCM audio stream (ffmpeg stdout)
+ *   - stream: readable Opus audio stream (ffmpeg stdout)
  *   - cleanup(): kills both child processes
  */
 function createAudioPipeline(videoUrl) {
@@ -153,4 +153,17 @@ function getVideoMetadata(videoUrl) {
   });
 }
 
-module.exports = { isYouTubeURL, createAudioPipeline, getVideoMetadata };
+/**
+ * Prewarmed pipeline: starts yt-dlp + ffmpeg immediately so data is already
+ * buffering by the time the player actually calls play().
+ *
+ * Returns an object: { stream, cleanup, url }
+ * Pass this directly to GuildPlayer.enqueue() as `song.prewarm`.
+ */
+function prewarmPipeline(videoUrl) {
+  console.log(`[prewarm] Starting pipeline early for ${videoUrl}`);
+  const pipeline = createAudioPipeline(videoUrl);
+  return { ...pipeline, url: videoUrl };
+}
+
+module.exports = { isYouTubeURL, createAudioPipeline, prewarmPipeline, getVideoMetadata };
