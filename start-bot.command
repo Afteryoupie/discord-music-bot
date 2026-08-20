@@ -54,6 +54,22 @@ echo "  • Close this window to stop the bot"
 echo "─────────────────────────────────────"
 echo ""
 
+# ── Auto-update yt-dlp ─────────────────────────────────────────
+echo "🔄 檢查 yt-dlp 更新..."
+YTDLP_BIN="yt-dlp"
+if [ -f "$BOT_DIR/yt-dlp" ]; then
+  YTDLP_BIN="$BOT_DIR/yt-dlp"
+fi
+
+if command -v "$YTDLP_BIN" &>/dev/null || [ -f "$YTDLP_BIN" ]; then
+  "$YTDLP_BIN" -U 2>/dev/null || true
+  YTDLP_VER=$("$YTDLP_BIN" --version 2>/dev/null || echo "未知")
+  echo "📦 yt-dlp 當前版本: $YTDLP_VER"
+else
+  echo "⚠️ 未找到 yt-dlp，請確認已安裝。"
+fi
+echo ""
+
 cd "$BOT_DIR"
 "$NODE" src/index.js &
 BOT_PID=$!
