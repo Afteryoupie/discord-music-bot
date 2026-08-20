@@ -4,11 +4,11 @@ const { Client, GatewayIntentBits, Events, MessageFlags } = require('discord.js'
 const { loadCommands } = require('./handlers/commandHandler');
 const { handleButton } = require('./handlers/buttonHandler');
 const { guildPlayers } = require('./music/GuildPlayer');
-const { autoUpdateYtDlp } = require('./utils/ytdlpUpdater');
+const { runStartupUpdates } = require('./utils/ytdlpUpdater');
 
 async function main() {
-  // Check and auto-update yt-dlp on startup
-  autoUpdateYtDlp();
+  // Check and auto-update yt-dlp and safe npm packages on startup
+  runStartupUpdates();
   // @discordjs/voice will use Node.js built-in AES-256-GCM (aead_aes256_gcm_rtpsize)
   // No external crypto library needed
 

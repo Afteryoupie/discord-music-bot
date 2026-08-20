@@ -70,6 +70,11 @@ else
 fi
 echo ""
 
+# ── Auto-update Safe NPM Packages ──────────────────────────────
+echo "🔄 檢查安全套件更新 (yt-search, dotenv, better-sqlite3)..."
+npm update yt-search dotenv better-sqlite3 --prefix "$BOT_DIR" --silent 2>/dev/null || true
+echo ""
+
 cd "$BOT_DIR"
 "$NODE" src/index.js &
 BOT_PID=$!
