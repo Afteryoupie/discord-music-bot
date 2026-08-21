@@ -40,6 +40,8 @@ async function main() {
     try {
       await command.execute(interaction);
     } catch (error) {
+      // 10062 = Unknown Interaction — expired before we could respond, silently discard
+      if (error?.code === 10062) return;
       console.error(`[Command error] /${interaction.commandName}:`, error);
       const msg = { content: '❌ 發生錯誤，請稍後再試。', flags: [MessageFlags.Ephemeral] };
       if (interaction.replied || interaction.deferred) {

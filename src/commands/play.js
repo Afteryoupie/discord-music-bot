@@ -44,7 +44,15 @@ module.exports = {
     }
 
     const query = interaction.options.getString('song');
-    await interaction.deferReply();
+
+    // Claim the 3-second Discord interaction window immediately.
+    // If it's already expired (e.g. bot was lagging), silently discard.
+    try {
+      await interaction.deferReply();
+    } catch (err) {
+      if (err?.code === 10062) return; // interaction expired — nothing we can do
+      throw err;
+    }
 
     try {
       // 2. Get or create GuildPlayer
