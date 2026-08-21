@@ -118,10 +118,14 @@ module.exports = {
 
       const song = { title: videoTitle, url: videoUrl, duration: videoDuration, requestedBy };
 
-      // Prewarm: start yt-dlp + ffmpeg NOW so data is already buffering
-      // before playNext() is called. This eliminates first-song cold-start delay.
-      // Only do this for single songs (not playlists) to avoid wasting resources.
-      song.prewarm = prewarmPipeline(videoUrl);
+      // Prewarm: start yt-dlp + ffmpeg NOW only when this song will play immediately.
+      // Queued songs should NOT prewarm here — they waste resources and cause
+      // the "[prewarm] Starting pipeline early" spam seen in logs.
+      // GuildPlayer.playNext() handles the pipeline at the right time.
+      const willPlayNow = !gp.nowPlaying;
+      if (willPlayNow) {
+        song.prewarm = prewarmPipeline(videoUrl);
+      }
 
       const enqueueResult = gp.enqueue(song);
 
