@@ -120,21 +120,58 @@ function createAudioPipeline(videoUrl) {
 }
 
 /**
- * Fetch video title and duration using yt-dlp to bypass 429 rate limits.
+ * Fetch video title and duration using fast lightweight methods first (yt-search / oembed),
+ * falling back to yt-dlp if needed.
  * @param {string} videoUrl
  * @returns {Promise<{title: string, duration: string} | null>}
  */
-function getVideoMetadata(videoUrl) {
+async function getVideoMetadata(videoUrl) {
+  const videoId = extractVideoId(videoUrl);
+
+  // 1. Try yt-search by videoId (fast: ~300ms, gets title + exact formatted duration)
+  if (videoId) {
+    try {
+      const yts = require('yt-search');
+      const res = await Promise.race([
+        yts({ videoId }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+      ]);
+      if (res && res.title) {
+        return {
+          title: res.title,
+          duration: res.timestamp || (res.duration?.seconds ? String(res.duration.seconds) : '?'),
+        };
+      }
+    } catch {
+      // Ignore and proceed to next fallback
+    }
+  }
+
+  // 2. Try YouTube official oEmbed API (ultra fast: ~100ms, gets title)
+  try {
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`;
+    const res = await fetch(oembedUrl, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.title) {
+        return { title: data.title, duration: '?' };
+      }
+    }
+  } catch {
+    // Ignore and proceed to yt-dlp
+  }
+
+  // 3. Fallback to yt-dlp if lightweight lookups fail
   return new Promise((resolve) => {
     const args = [
       '--no-warnings',
       '--cache-dir', YTDLP_CACHE,
-      '--no-playlist',          // never resolve a playlist accidentally
-      '--socket-timeout', '10', // abort per-socket after 10s (surfaces network errors faster)
+      '--no-playlist',
+      '--socket-timeout', '10',
       '--print', '%(title)s|%(duration_string)s',
       videoUrl,
     ];
-    
+
     const child = spawn(YTDLP_PATH, args);
     let stdout = '';
     let stderr = '';
@@ -146,7 +183,7 @@ function getVideoMetadata(videoUrl) {
       child.kill();
       console.error('[yt-dlp metadata timeout]');
       resolve(null);
-    }, 20000);
+    }, 15000);
 
     child.on('close', (code) => {
       clearTimeout(timeout);
