@@ -14,7 +14,7 @@ const {
   entersState,
   NoSubscriberBehavior,
 } = require('@discordjs/voice');
-const { createAudioPipeline, extractVideoId } = require('./audioPipeline');
+const { createAudioPipeline, prewarmPipeline, extractVideoId } = require('./audioPipeline');
 const db = require('../database/DbManager');
 const { createPlayingEmbed, getPlayerButtons } = require('../utils/embedGenerator');
 
@@ -219,6 +219,12 @@ class GuildPlayer {
       });
 
       this.player.play(resource);
+
+      // Prewarm the next song in queue so skip is instant (no cold-start delay)
+      // Only if it hasn't been prewarmed already (e.g. by /play)
+      if (this.queue.length > 0 && !this.queue[0].prewarm) {
+        this.queue[0].prewarm = prewarmPipeline(this.queue[0].url);
+      }
 
       // Notify text channel - Stick the dashboard at bottom after any transitions
       if (this.textChannel) {
