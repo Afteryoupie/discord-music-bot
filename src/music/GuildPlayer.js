@@ -80,7 +80,9 @@ class GuildPlayer {
   _setupPlayer() {
     this.player = createAudioPlayer({
       behaviors: {
-        noSubscriber: NoSubscriberBehavior.Pause,
+        // Play (not Pause) so brief voice disconnects don't autopause the player.
+        // When the connection drops for <5s and reconnects, audio resumes seamlessly.
+        noSubscriber: NoSubscriberBehavior.Play,
         maxMissedFrames: 250,
       },
     });
@@ -141,6 +143,14 @@ class GuildPlayer {
         // Could not reconnect — destroy
         console.log(`[${this.guildId}] Could not reconnect, destroying.`);
         this.destroy();
+      }
+    });
+
+    // When connection is fully ready (including after reconnect), resume if autopaused
+    this.connection.on(VoiceConnectionStatus.Ready, () => {
+      if (this.player.state.status === AudioPlayerStatus.AutoPaused) {
+        console.log(`[${this.guildId}] Connection ready — resuming autopaused player.`);
+        this.player.unpause();
       }
     });
 
