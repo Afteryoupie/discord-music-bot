@@ -11,8 +11,17 @@ const path = require('path');
 // Resolve binary paths: env var → fallback to bare command (relies on PATH)
 const FFMPEG_PATH = process.env.FFMPEG_PATH || 'ffmpeg';
 const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp';
+const fs = require('fs');
 // Writable cache dir inside the project
 const YTDLP_CACHE = path.join(__dirname, '..', '..', '.ytdlp-cache');
+const COOKIES_PATH = process.env.COOKIES_PATH || path.join(__dirname, '..', '..', 'cookies.txt');
+
+function getCookieArgs() {
+  if (fs.existsSync(COOKIES_PATH)) {
+    return ['--cookies', COOKIES_PATH];
+  }
+  return [];
+}
 
 /**
  * Extract YouTube video ID from a URL.
@@ -45,15 +54,18 @@ function isYouTubeURL(str) {
  *   - cleanup(): kills both child processes
  */
 function createAudioPipeline(videoUrl) {
-  const ytdlp = spawn(YTDLP_PATH, [
+  const ytdlpArgs = [
     '--cache-dir', YTDLP_CACHE,
     '--no-warnings',
     '-f', 'bestaudio/best',
     '--buffer-size', '16M',
     '--no-playlist',
+    ...getCookieArgs(),
     '-o', '-',       // pipe to stdout
     videoUrl,
-  ]);
+  ];
+
+  const ytdlp = spawn(YTDLP_PATH, ytdlpArgs);
 
   const ffmpeg = spawn(FFMPEG_PATH, [
     '-i', 'pipe:0',  // read from stdin
