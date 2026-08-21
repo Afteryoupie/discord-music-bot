@@ -7,11 +7,11 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 // Resolve binary paths: env var → fallback to bare command (relies on PATH)
 const FFMPEG_PATH = process.env.FFMPEG_PATH || 'ffmpeg';
 const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp';
-const fs = require('fs');
 // Writable cache dir inside the project
 const YTDLP_CACHE = path.join(__dirname, '..', '..', '.ytdlp-cache');
 const COOKIES_PATH = process.env.COOKIES_PATH || path.join(__dirname, '..', '..', 'cookies.txt');
@@ -180,6 +180,7 @@ async function getVideoMetadata(videoUrl) {
       '--cache-dir', YTDLP_CACHE,
       '--no-playlist',
       '--socket-timeout', '10',
+      ...getCookieArgs(),           // also pass cookies in fallback path
       '--print', '%(title)s|%(duration_string)s',
       videoUrl,
     ];
