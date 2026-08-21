@@ -129,6 +129,8 @@ function getVideoMetadata(videoUrl) {
     const args = [
       '--no-warnings',
       '--cache-dir', YTDLP_CACHE,
+      '--no-playlist',          // never resolve a playlist accidentally
+      '--socket-timeout', '10', // abort per-socket after 10s (surfaces network errors faster)
       '--print', '%(title)s|%(duration_string)s',
       videoUrl,
     ];
@@ -144,7 +146,7 @@ function getVideoMetadata(videoUrl) {
       child.kill();
       console.error('[yt-dlp metadata timeout]');
       resolve(null);
-    }, 15000);
+    }, 20000);
 
     child.on('close', (code) => {
       clearTimeout(timeout);
