@@ -468,7 +468,8 @@ class GuildPlayer {
         url: historicalSong.url,
         duration: historicalSong.duration,
         requestedById: 'radio',
-        requestedByName: '智慧電台'
+        requestedByName: '智慧電台',
+        requestedBy: '智慧電台',   // embedGenerator reads this field
       };
 
       this.queue.push(songToPlay);

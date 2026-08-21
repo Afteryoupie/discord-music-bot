@@ -75,6 +75,11 @@ async function main() {
     }
   });
 
+  // Prevent Discord client 'error' events from crashing the process
+  client.on(Events.Error, error => {
+    console.error('[Discord client error]', error);
+  });
+
   process.on('unhandledRejection', error => {
     console.error('[Unhandled rejection]', error);
   });

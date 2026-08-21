@@ -13,14 +13,14 @@ async function handleButton(interaction) {
   const { customId, guildId } = interaction;
   const gp = guildPlayers.get(guildId);
 
-  if (!gp || !gp.nowPlaying) {
-    return interaction.reply({
-      content: '❌ 目前沒有正在播放的歌曲！',
-      flags: [MessageFlags.Ephemeral],
-    });
-  }
-
   try {
+    if (!gp || !gp.nowPlaying) {
+      return interaction.reply({
+        content: '❌ 目前沒有正在播放的歌曲！',
+        flags: [MessageFlags.Ephemeral],
+      });
+    }
+
     // ── Pause / Resume ─────────────────────────────────────────
     if (customId === 'btn_pause_resume') {
       const wasPaused = gp.isPaused();
@@ -45,8 +45,8 @@ async function handleButton(interaction) {
       // Delete old dashboard first
       await gp._cleanupLastMessage();
 
-      // Send text notification
-      await interaction.channel.send({ content: `⏭️ 已跳過：**${title}**` });
+      // Send text notification (channel may be null in edge cases)
+      await interaction.channel?.send({ content: `⏭️ 已跳過：**${title}**` });
 
       // Trigger skip — stop(true) in skip() ensures Idle fires even if paused
       gp.skip();
@@ -87,17 +87,19 @@ async function handleButton(interaction) {
       const embed = createQueueEmbed(gp.queue, gp.nowPlaying, gp.isPaused(), gp.isRadioMode);
       return interaction.reply({
         embeds: [embed],
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 
   } catch (err) {
+    // 10062 = Unknown Interaction — the 3-second window expired; silently discard
+    if (err?.code === 10062) return;
     console.error('[Button Error]', err);
     try {
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: '❌ 操作發生錯誤，請重試。', ephemeral: true });
+        await interaction.reply({ content: '❌ 操作發生錯誤，請重試。', flags: [MessageFlags.Ephemeral] });
       } else {
-        await interaction.followUp({ content: '❌ 執行操作時發生錯誤。', ephemeral: true });
+        await interaction.followUp({ content: '❌ 執行操作時發生錯誤。', flags: [MessageFlags.Ephemeral] });
       }
     } catch { /* ignore */ }
   }
