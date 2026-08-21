@@ -15,6 +15,17 @@ const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp';
 const YTDLP_CACHE = path.join(__dirname, '..', '..', '.ytdlp-cache');
 
 /**
+ * Extract YouTube video ID from a URL.
+ */
+function extractVideoId(url) {
+  try {
+    if (url.includes('v=')) return new URL(url).searchParams.get('v');
+    if (url.includes('youtu.be/')) return url.split('youtu.be/')[1]?.split('?')[0];
+  } catch {}
+  return null;
+}
+
+/**
  * Check if a string looks like a YouTube URL.
  */
 function isYouTubeURL(str) {
@@ -38,6 +49,7 @@ function createAudioPipeline(videoUrl) {
     '--cache-dir', YTDLP_CACHE,
     '--no-warnings',
     '-f', 'bestaudio/best',
+    '--buffer-size', '16M',
     '--no-playlist',
     '-o', '-',       // pipe to stdout
     videoUrl,
@@ -45,8 +57,12 @@ function createAudioPipeline(videoUrl) {
 
   const ffmpeg = spawn(FFMPEG_PATH, [
     '-i', 'pipe:0',  // read from stdin
+    '-vn',           // ignore any video stream to avoid timestamp jumps
     '-c:a', 'libopus', // use libopus encoder (Discord native)
     '-b:a', '128k',    // 128kbps bitrate
+    '-ar', '48000',    // Discord requires fixed 48kHz sample rate
+    '-ac', '2',        // Discord requires 2 channels (stereo)
+    '-af', 'aresample=async=1000', // Sync timestamps & prevent tempo drift
     '-frame_duration', '20', // 20ms frame duration
     '-f', 'opus',      // Ogg Opus container output
     'pipe:1',        // output to stdout
@@ -110,7 +126,6 @@ function createAudioPipeline(videoUrl) {
  */
 function getVideoMetadata(videoUrl) {
   return new Promise((resolve) => {
-    const { spawn } = require('child_process');
     const args = [
       '--no-warnings',
       '--cache-dir', YTDLP_CACHE,
@@ -166,4 +181,4 @@ function prewarmPipeline(videoUrl) {
   return { ...pipeline, url: videoUrl };
 }
 
-module.exports = { isYouTubeURL, createAudioPipeline, prewarmPipeline, getVideoMetadata };
+module.exports = { isYouTubeURL, extractVideoId, createAudioPipeline, prewarmPipeline, getVideoMetadata };

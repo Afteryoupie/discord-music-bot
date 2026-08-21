@@ -8,15 +8,7 @@ const COLORS = {
   INFO:    0xf1c40f,   // Yellow
 };
 
-// ─── Helper ───────────────────────────────────────────────────
-
-function extractVideoId(url) {
-  try {
-    if (url.includes('v=')) return new URL(url).searchParams.get('v');
-    if (url.includes('youtu.be/')) return url.split('youtu.be/')[1]?.split('?')[0];
-  } catch {}
-  return null;
-}
+const { extractVideoId } = require('../music/audioPipeline');
 
 // ─── Embeds ───────────────────────────────────────────────────
 

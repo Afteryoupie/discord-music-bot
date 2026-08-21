@@ -12,20 +12,6 @@ async function main() {
   // @discordjs/voice will use Node.js built-in AES-256-GCM (aead_aes256_gcm_rtpsize)
   // No external crypto library needed
 
-  // Intercept all WebSocket close events to get close codes for diagnosis
-  const ws = require('ws');
-  const origOn = ws.prototype.on;
-  ws.prototype.on = function(event, handler) {
-    if (event === 'close') {
-      const wrapped = function(code, reason) {
-        console.log(`[WS CLOSE] code=${code} reason=${reason?.toString() || '(none)'}`);
-        return handler.call(this, code, reason);
-      };
-      return origOn.call(this, event, wrapped);
-    }
-    return origOn.call(this, event, handler);
-  };
-
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { getOrCreate, guildPlayers } = require('../music/GuildPlayer');
+const { guildPlayers } = require('../music/GuildPlayer');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -18,7 +18,6 @@ module.exports = {
 
     const queueSize = gp.queue.length;
     gp.destroy();
-    guildPlayers.delete(interaction.guildId);
 
     const extra = queueSize > 0 ? `（已清空 ${queueSize} 首待播歌曲）` : '';
     return interaction.reply(`👋 已離開語音頻道！${extra}`);

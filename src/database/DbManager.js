@@ -8,6 +8,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const { extractVideoId } = require('../music/audioPipeline');
 
 // Ensure data directory exists
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
@@ -58,15 +59,7 @@ function recordHistory(guildId, song) {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     
-    // Extract video ID from URL if possible
-    let videoId = null;
-    try {
-      if (song.url.includes('v=')) {
-        videoId = new URL(song.url).searchParams.get('v');
-      } else if (song.url.includes('youtu.be/')) {
-        videoId = song.url.split('youtu.be/')[1]?.split('?')[0];
-      }
-    } catch {}
+    const videoId = extractVideoId(song.url);
 
     insert.run(
       guildId,

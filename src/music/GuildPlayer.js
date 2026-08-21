@@ -12,8 +12,9 @@ const {
   StreamType,
   VoiceConnectionStatus,
   entersState,
+  NoSubscriberBehavior,
 } = require('@discordjs/voice');
-const { createAudioPipeline } = require('./audioPipeline');
+const { createAudioPipeline, extractVideoId } = require('./audioPipeline');
 const db = require('../database/DbManager');
 const { createPlayingEmbed, getPlayerButtons } = require('../utils/embedGenerator');
 
@@ -23,9 +24,11 @@ const IDLE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 class GuildPlayer {
   /**
    * @param {string} guildId
+   * @param {Function | null} [onDestroy]
    */
-  constructor(guildId) {
+  constructor(guildId, onDestroy = null) {
     this.guildId = guildId;
+    this._onDestroy = onDestroy;
 
     /** @type {Array<{title: string, url: string, duration: string, requestedBy: string}>} */
     this.queue = [];
@@ -75,7 +78,12 @@ class GuildPlayer {
   // ─── Internal Setup ───────────────────────────────────────────
 
   _setupPlayer() {
-    this.player = createAudioPlayer();
+    this.player = createAudioPlayer({
+      behaviors: {
+        noSubscriber: NoSubscriberBehavior.Pause,
+        maxMissedFrames: 250,
+      },
+    });
 
     // When a song finishes → play next or start idle timer
     this.player.on(AudioPlayerStatus.Idle, () => {
@@ -183,13 +191,7 @@ class GuildPlayer {
     this.nowPlaying = song;
 
     // Track video ID for history and recommendations
-    try {
-      if (song.url.includes('v=')) {
-        this.lastPlayedId = new URL(song.url).searchParams.get('v');
-      } else if (song.url.includes('youtu.be/')) {
-        this.lastPlayedId = song.url.split('youtu.be/')[1]?.split('?')[0];
-      }
-    } catch { }
+    this.lastPlayedId = extractVideoId(song.url);
 
     console.log(`[${this.guildId}] Playing: ${song.title} (${song.url})`);
 
@@ -351,6 +353,7 @@ class GuildPlayer {
    */
   destroy() {
     this._clearIdleTimer();
+    this.clearEmptyChannelTimer();
     this._cleanupPipeline();
 
     if (this.player) {
@@ -363,6 +366,11 @@ class GuildPlayer {
 
     this._reset();
     this._cleanupLastMessage();
+
+    if (this._onDestroy) {
+      this._onDestroy();
+      this._onDestroy = null;
+    }
   }
 
   // ─── Internal Helpers ─────────────────────────────────────────
@@ -407,7 +415,6 @@ class GuildPlayer {
         this.textChannel.send('👋 已經 3 分鐘沒有新歌了，自動離開語音頻道！').catch(() => { });
       }
       this.destroy();
-      guildPlayers.delete(this.guildId);
     }, IDLE_TIMEOUT_MS);
   }
 
@@ -431,7 +438,6 @@ class GuildPlayer {
       }
       await this._cleanupLastMessage();
       this.destroy();
-      guildPlayers.delete(this.guildId);
     }, IDLE_TIMEOUT_MS);
   }
 
@@ -487,7 +493,7 @@ const guildPlayers = new Map();
  */
 function getOrCreate(guildId) {
   if (!guildPlayers.has(guildId)) {
-    guildPlayers.set(guildId, new GuildPlayer(guildId));
+    guildPlayers.set(guildId, new GuildPlayer(guildId, () => guildPlayers.delete(guildId)));
   }
   return guildPlayers.get(guildId);
 }

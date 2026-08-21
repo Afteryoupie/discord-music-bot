@@ -5,7 +5,7 @@
  * Uses yt-dlp --flat-playlist for fast extraction without downloading metadata for every video.
  */
 
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 
 const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp';
@@ -18,7 +18,6 @@ const YTDLP_CACHE = path.join(__dirname, '..', '..', '.ytdlp-cache');
  */
 function fetchPlaylist(playlistUrl) {
   return new Promise((resolve) => {
-    const { spawn } = require('child_process');
     const args = [
       '--no-warnings',
       '--cache-dir', YTDLP_CACHE,
